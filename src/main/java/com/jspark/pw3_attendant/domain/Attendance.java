@@ -1,26 +1,17 @@
 package com.jspark.pw3_attendant.domain;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
-import jakarta.persistence.Table;
-import jakarta.persistence.UniqueConstraint;
-import java.time.LocalDate;
+import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
+
+import java.time.LocalDate;
 
 @Entity
 @Getter
+@Setter
 @NoArgsConstructor
-@Table(name = "attendance",
-    uniqueConstraints = @UniqueConstraint(columnNames = {"student_class_id", "date"})
-)
+@Table(name = "attendance")
 public class Attendance extends BaseEntity {
 
     @Id
@@ -28,31 +19,13 @@ public class Attendance extends BaseEntity {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "student_class_id", nullable = false)
-    private StudentClass studentClass;
+    @JoinColumn(nullable = false)
+    private StudentClass studentClass; // 🔥 출석은 StudentClass 기준
 
-    private LocalDate date;
+    @Column(nullable = false)
+    private LocalDate date; // 출석한 날짜
 
     @Enumerated(EnumType.STRING)
-    private AttendanceStatus status;
-
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    public void setStudentClass(StudentClass studentClass) {
-        this.studentClass = studentClass;
-    }
-
-    public void setDate(LocalDate date) {
-        this.date = date;
-    }
-
-    public void setStatus(AttendanceStatus status) {
-        this.status = status;
-    }
+    @Column(nullable = false)
+    private AttendanceStatus status; // ATTEND, ABSENT, LATE, OTHER
 }
-
-
-
-

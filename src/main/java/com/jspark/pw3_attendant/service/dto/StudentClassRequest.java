@@ -8,6 +8,5 @@ import lombok.NoArgsConstructor;
 public class StudentClassRequest {
     private Long studentId;
     private Long classRoomId;
-    private Integer schoolYear;
+    private Integer schoolYear; // 2025, 2026 이런거
 }
-

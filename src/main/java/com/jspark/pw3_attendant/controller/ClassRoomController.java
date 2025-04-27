@@ -22,9 +22,7 @@ public class ClassRoomController {
      */
     @PostMapping
     public ClassRoomResponse createClassRoom(@RequestBody ClassRoomRequest request) {
-        ClassRoom classRoom = new ClassRoom();
-        classRoom.setName(request.getName());
-        ClassRoom savedClassRoom = classRoomService.save(classRoom);
+        ClassRoom savedClassRoom = classRoomService.save(request);
         return ClassRoomResponse.from(savedClassRoom);
     }
 

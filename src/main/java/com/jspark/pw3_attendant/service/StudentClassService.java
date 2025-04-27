@@ -11,8 +11,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
-
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -35,14 +33,5 @@ public class StudentClassService {
         studentClass.setSchoolYear(request.getSchoolYear());
 
         return studentClassRepository.save(studentClass);
-    }
-
-    public StudentClass findById(Long id) {
-        return studentClassRepository.findById(id)
-            .orElseThrow(() -> new IllegalArgumentException("학생-반 매핑을 찾을 수 없습니다."));
-    }
-
-    public List<StudentClass> findAllByClassRoomAndYear(Long classRoomId, Integer schoolYear) {
-        return studentClassRepository.findAllByClassRoomIdAndSchoolYear(classRoomId, schoolYear);
     }
 }

@@ -22,9 +22,7 @@ public class StudentController {
      */
     @PostMapping
     public StudentResponse createStudent(@RequestBody StudentRequest request) {
-        Student student = new Student();
-        student.setName(request.getName());
-        Student savedStudent = studentService.save(student);
+        Student savedStudent = studentService.save(request);
         return StudentResponse.from(savedStudent);
     }
 

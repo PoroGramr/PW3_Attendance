@@ -1,18 +1,19 @@
 package com.jspark.pw3_attendant.repository;
 
 import com.jspark.pw3_attendant.domain.Attendance;
+import org.springframework.data.jpa.repository.JpaRepository;
+
 import java.time.LocalDate;
 import java.util.List;
-import java.util.Optional;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.stereotype.Repository;
 
-@Repository
 public interface AttendanceRepository extends JpaRepository<Attendance, Long> {
 
-    // 학생반 + 날짜 기준으로 출석 기록 찾기
-    Optional<Attendance> findByStudentClassIdAndDate(Long studentClassId, LocalDate date);
+    // 특정 학생-반 매핑(studentClassId)로 모든 출석 기록 조회
+    List<Attendance> findAllByStudentClassId(Long studentClassId);
 
-    // 여러 학생반 ID 목록 + 날짜로 출석 기록 일괄 조회
-    List<Attendance> findAllByStudentClassIdInAndDate(List<Long> studentClassIds, LocalDate date);
+    // 특정 학생-반 매핑(studentClassId) + 특정 날짜(date) 출석 기록 조회
+    List<Attendance> findAllByStudentClassIdAndDate(Long studentClassId, LocalDate date);
+
+    // 특정 반(classRoomId) + 특정 연도(schoolYear) + 날짜(date)로 출석 조회 (확장용, 선택)
+    // -> 필요 시 Query 추가 가능
 }

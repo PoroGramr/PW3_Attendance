@@ -7,15 +7,21 @@ import lombok.Getter;
 @Getter
 @AllArgsConstructor
 public class ClassRoomResponse {
-
     private Long id;
+    private String schoolType;
+    private Integer grade;
+    private Integer classNumber;
     private String name;
 
     public static ClassRoomResponse from(ClassRoom classRoom) {
         return new ClassRoomResponse(
             classRoom.getId(),
+            classRoom.getSchoolType().name(),
+            classRoom.getGrade(),
+            classRoom.getClassNumber(),
             classRoom.getName()
         );
     }
 }
+
 
