@@ -1,11 +1,12 @@
-package com.jspark.pw3_attendant.repository;
+package com.jspark.pw3_attendant.repository.Attendance;
 
-import com.jspark.pw3_attendant.domain.Attendance;
-import java.util.Optional;
-import org.springframework.data.jpa.repository.JpaRepository;
 
+
+import com.jspark.pw3_attendant.domain.Attendance.Attendance;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
+import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface AttendanceRepository extends JpaRepository<Attendance, Long> {
 

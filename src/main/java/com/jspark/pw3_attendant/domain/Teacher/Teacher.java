@@ -1,5 +1,6 @@
-package com.jspark.pw3_attendant.domain;
+package com.jspark.pw3_attendant.domain.Teacher;
 
+import com.jspark.pw3_attendant.domain.BaseEntity;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;

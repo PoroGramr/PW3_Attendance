@@ -1,5 +1,6 @@
-package com.jspark.pw3_attendant.domain;
+package com.jspark.pw3_attendant.domain.Student;
 
+import com.jspark.pw3_attendant.domain.BaseEntity;
 import jakarta.persistence.*;
 import java.time.LocalDate;
 import lombok.Getter;

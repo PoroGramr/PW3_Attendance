@@ -1,9 +1,9 @@
 package com.jspark.pw3_attendant.controller;
 
-import com.jspark.pw3_attendant.domain.ClassRoom;
-import com.jspark.pw3_attendant.service.ClassRoomService;
-import com.jspark.pw3_attendant.service.dto.ClassRoomRequest;
-import com.jspark.pw3_attendant.service.dto.ClassRoomResponse;
+import com.jspark.pw3_attendant.domain.ClassRoom.ClassRoom;
+import com.jspark.pw3_attendant.service.ClassRoom.ClassRoomService;
+import com.jspark.pw3_attendant.service.ClassRoom.dto.ClassRoomRequest;
+import com.jspark.pw3_attendant.service.ClassRoom.dto.ClassRoomResponse;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;

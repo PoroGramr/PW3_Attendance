@@ -1,5 +1,7 @@
-package com.jspark.pw3_attendant.domain;
+package com.jspark.pw3_attendant.domain.Attendance;
 
+import com.jspark.pw3_attendant.domain.BaseEntity;
+import com.jspark.pw3_attendant.domain.StudentClass.StudentClass;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -11,7 +13,15 @@ import java.time.LocalDate;
 @Getter
 @Setter
 @NoArgsConstructor
-@Table(name = "attendance")
+@Table(
+    name = "attendance",
+    uniqueConstraints = {
+        @UniqueConstraint(
+            name = "uk_attendance_studentclass_date",
+            columnNames = {"student_class_id", "date"}
+        )
+    }
+)
 public class Attendance extends BaseEntity {
 
     @Id
@@ -20,7 +30,7 @@ public class Attendance extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(nullable = false)
-    private StudentClass studentClass; // 🔥 출석은 StudentClass 기준
+    private StudentClass studentClass; //
 
     @Column(nullable = false)
     private LocalDate date; // 출석한 날짜
@@ -28,4 +38,11 @@ public class Attendance extends BaseEntity {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private AttendanceStatus status; // ATTEND, ABSENT, LATE, OTHER
+
+    public enum AttendanceStatus{
+        ATTEND,
+        LATE,
+        ABSENT,
+        OTHER
+    }
 }

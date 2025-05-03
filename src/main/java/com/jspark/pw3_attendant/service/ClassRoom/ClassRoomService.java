@@ -1,8 +1,9 @@
-package com.jspark.pw3_attendant.service;
+package com.jspark.pw3_attendant.service.ClassRoom;
 
-import com.jspark.pw3_attendant.domain.ClassRoom;
-import com.jspark.pw3_attendant.repository.ClassRoomRepository;
-import com.jspark.pw3_attendant.service.dto.ClassRoomRequest;
+
+import com.jspark.pw3_attendant.domain.ClassRoom.ClassRoom;
+import com.jspark.pw3_attendant.repository.ClassRoom.ClassRoomRepository;
+import com.jspark.pw3_attendant.service.ClassRoom.dto.ClassRoomRequest;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;

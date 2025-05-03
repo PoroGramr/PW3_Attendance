@@ -1,6 +1,6 @@
-package com.jspark.pw3_attendant.service.dto;
+package com.jspark.pw3_attendant.service.ClassRoom.dto;
 
-import com.jspark.pw3_attendant.domain.ClassRoom;
+import com.jspark.pw3_attendant.domain.ClassRoom.ClassRoom;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 

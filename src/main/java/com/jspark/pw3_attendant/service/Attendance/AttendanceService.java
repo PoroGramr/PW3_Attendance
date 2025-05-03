@@ -1,11 +1,13 @@
-package com.jspark.pw3_attendant.service;
+package com.jspark.pw3_attendant.service.Attendance;
 
-import com.jspark.pw3_attendant.domain.Attendance;
-import com.jspark.pw3_attendant.domain.AttendanceStatus;
-import com.jspark.pw3_attendant.domain.StudentClass;
-import com.jspark.pw3_attendant.repository.AttendanceRepository;
-import com.jspark.pw3_attendant.repository.StudentClassRepository;
-import com.jspark.pw3_attendant.service.dto.StudentAttendanceResponse;
+
+import com.jspark.pw3_attendant.domain.Attendance.Attendance;
+import com.jspark.pw3_attendant.domain.Attendance.Attendance.AttendanceStatus;
+import com.jspark.pw3_attendant.domain.StudentClass.StudentClass;
+
+import com.jspark.pw3_attendant.repository.Attendance.AttendanceRepository;
+import com.jspark.pw3_attendant.repository.StudentClass.StudentClassRepository;
+import com.jspark.pw3_attendant.service.Attendance.dto.StudentAttendanceResponse;
 import java.util.ArrayList;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -24,16 +26,24 @@ public class AttendanceService {
     private final StudentClassRepository studentClassRepository;
 
     @Transactional
-    public void saveAttendance(Long studentClassId, LocalDate date, AttendanceStatus status) {
-        StudentClass studentClass = studentClassRepository.findById(studentClassId)
+    public boolean upsertAttendance(Long studentClassId, LocalDate date, AttendanceStatus status) {
+        StudentClass sc = studentClassRepository.findById(studentClassId)
             .orElseThrow(() -> new IllegalArgumentException("학생-반 매핑을 찾을 수 없습니다."));
 
-        Attendance attendance = new Attendance();
-        attendance.setStudentClass(studentClass);
-        attendance.setDate(date);
-        attendance.setStatus(status);
+        // 1) 기존에 있으면 상태만 업데이트
+        Optional<Attendance> opt = attendanceRepository.findByStudentClassIdAndDate(studentClassId, date);
+        if (opt.isPresent()) {
+            opt.get().setStatus(status);
+            return false;  // 수정
+        }
 
-        attendanceRepository.save(attendance);
+        // 2) 없으면 새로 생성
+        Attendance att = new Attendance();
+        att.setStudentClass(sc);
+        att.setDate(date);
+        att.setStatus(status);
+        attendanceRepository.save(att);
+        return true;   // 생성
     }
 
     public List<Attendance> findByStudentClass(Long studentClassId) {

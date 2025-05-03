@@ -1,14 +1,15 @@
-package com.jspark.pw3_attendant.service;
+package com.jspark.pw3_attendant.service.StudentClass;
 
-import com.jspark.pw3_attendant.domain.ClassRoom;
-import com.jspark.pw3_attendant.domain.Student;
-import com.jspark.pw3_attendant.domain.StudentClass;
-import com.jspark.pw3_attendant.repository.ClassRoomRepository;
-import com.jspark.pw3_attendant.repository.StudentClassRepository;
-import com.jspark.pw3_attendant.repository.StudentRepository;
-import com.jspark.pw3_attendant.service.dto.ClassRoomStudentsResponse;
-import com.jspark.pw3_attendant.service.dto.StudentClassRequest;
-import com.jspark.pw3_attendant.service.dto.StudentSummaryResponse;
+
+import com.jspark.pw3_attendant.domain.ClassRoom.ClassRoom;
+import com.jspark.pw3_attendant.domain.Student.Student;
+import com.jspark.pw3_attendant.domain.StudentClass.StudentClass;
+import com.jspark.pw3_attendant.repository.ClassRoom.ClassRoomRepository;
+import com.jspark.pw3_attendant.repository.Student.StudentRepository;
+import com.jspark.pw3_attendant.repository.StudentClass.StudentClassRepository;
+import com.jspark.pw3_attendant.service.StudentClass.dto.ClassRoomStudentsResponse;
+import com.jspark.pw3_attendant.service.StudentClass.dto.StudentClassRequest;
+import com.jspark.pw3_attendant.service.StudentClass.dto.StudentSummaryResponse;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
