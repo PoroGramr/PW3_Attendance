@@ -69,4 +69,21 @@ public class AttendanceController {
     }
 
 
+    /**
+     * 특정 반(classRoomId)의 해당 날짜(date) 출석 현황 조회
+     * GET /attendances/classrooms/{classRoomId}/date/{date}
+     */
+    @GetMapping("/classrooms/{classRoomId}/date/{date}")
+    public ResponseEntity<List<StudentAttendanceResponse>> getAttendanceByClassAndDate(
+        @PathVariable Long classRoomId,
+        @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
+    ) {
+        // date 기준 학년도를 내부에서 계산하거나, StudentClassService 레벨에서
+        // 만약 학년도가 필요하면 service 메서드 시그니처를 바꿔주세요.
+        List<StudentAttendanceResponse> list =
+            attendanceService.findStudentAttendancesByClassAndDate(classRoomId, date);
+
+        return ResponseEntity.ok(list);
+    }
+
 }

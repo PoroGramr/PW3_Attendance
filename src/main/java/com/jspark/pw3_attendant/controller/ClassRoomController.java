@@ -6,6 +6,7 @@ import com.jspark.pw3_attendant.service.ClassRoom.dto.ClassRoomRequest;
 import com.jspark.pw3_attendant.service.ClassRoom.dto.ClassRoomResponse;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.stream.Collectors;

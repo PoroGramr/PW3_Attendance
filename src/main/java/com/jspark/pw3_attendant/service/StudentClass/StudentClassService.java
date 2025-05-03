@@ -7,6 +7,8 @@ import com.jspark.pw3_attendant.domain.StudentClass.StudentClass;
 import com.jspark.pw3_attendant.repository.ClassRoom.ClassRoomRepository;
 import com.jspark.pw3_attendant.repository.Student.StudentRepository;
 import com.jspark.pw3_attendant.repository.StudentClass.StudentClassRepository;
+import com.jspark.pw3_attendant.service.ClassRoom.dto.ClassRoomResponse;
+import com.jspark.pw3_attendant.service.Student.dto.StudentResponse;
 import com.jspark.pw3_attendant.service.StudentClass.dto.ClassRoomStudentsResponse;
 import com.jspark.pw3_attendant.service.StudentClass.dto.StudentClassRequest;
 import com.jspark.pw3_attendant.service.StudentClass.dto.StudentSummaryResponse;
@@ -77,6 +79,28 @@ public class StudentClassService {
             })
             .sorted(Comparator.comparing(ClassRoomStudentsResponse::getGrade)
                 .thenComparing(ClassRoomStudentsResponse::getClassNumber))
+            .collect(Collectors.toList());
+    }
+
+    public List<StudentResponse> findStudentsByClassAndYear(Long classRoomId, Integer schoolYear) {
+        return studentClassRepository.findAllByClassRoom_IdAndSchoolYear(classRoomId, schoolYear)
+            .stream()
+            .map(sc -> new StudentResponse(
+                sc.getStudent().getId(),
+                sc.getStudent().getName()
+            ))
+            .collect(Collectors.toList());
+    }
+
+    /** 해당 학년도에 개설된 반들을 중복 제거 후 DTO로 반환 */
+    public List<ClassRoomResponse> findClassRoomsByYear(Integer schoolYear) {
+        return studentClassRepository.findAllBySchoolYear(schoolYear).stream()
+            // StudentClass → ClassRoom
+            .map(StudentClass::getClassRoom)
+            // 중복 제거 (ID 기준)
+            .distinct()
+            // DTO 변환
+            .map(ClassRoomResponse::from)
             .collect(Collectors.toList());
     }
 
