@@ -5,6 +5,9 @@ import com.jspark.pw3_attendant.domain.AttendanceStatus;
 import com.jspark.pw3_attendant.domain.StudentClass;
 import com.jspark.pw3_attendant.repository.AttendanceRepository;
 import com.jspark.pw3_attendant.repository.StudentClassRepository;
+import com.jspark.pw3_attendant.service.dto.StudentAttendanceResponse;
+import java.util.ArrayList;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -36,4 +39,28 @@ public class AttendanceService {
     public List<Attendance> findByStudentClass(Long studentClassId) {
         return attendanceRepository.findAllByStudentClassId(studentClassId);
     }
+
+    @Transactional(readOnly = true)
+    public List<StudentAttendanceResponse> findStudentAttendances(Long classRoomId, Integer schoolYear, LocalDate date) {
+        List<StudentClass> studentClasses = studentClassRepository.findAllByClassRoomIdAndSchoolYear(classRoomId, schoolYear);
+
+        List<StudentAttendanceResponse> result = new ArrayList<>();
+
+        for (StudentClass studentClass : studentClasses) {
+            Optional<Attendance> attendanceOpt = attendanceRepository.findByStudentClassIdAndDate(studentClass.getId(), date);
+
+            String status = attendanceOpt
+                .map(attendance -> attendance.getStatus().name()) // 출석 있으면 상태
+                .orElse("UNCHECKED"); // 출석 기록 없으면 "미체크"
+
+            result.add(new StudentAttendanceResponse(
+                studentClass.getStudent().getId(),
+                studentClass.getStudent().getName(),
+                status
+            ));
+        }
+
+        return result;
+    }
+
 }

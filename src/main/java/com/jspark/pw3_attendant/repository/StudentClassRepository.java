@@ -14,4 +14,7 @@ public interface StudentClassRepository extends JpaRepository<StudentClass, Long
     // 반 + 연도 기준으로 모든 학생-반 매핑 조회
     List<StudentClass> findAllByClassRoomIdAndSchoolYear(Long classRoomId, Integer schoolYear);
 
+    List<StudentClass> findAllBySchoolYear(Integer schoolYear);
+
+
 }

@@ -2,7 +2,7 @@ spring:
   datasource:
     url: jdbc:mysql://localhost:3306/attendant_db?serverTimezone=Asia/Seoul&useSSL=false&allowPublicKeyRetrieval=true
     username: root
-    password: password
+    password: 9177
     driver-class-name: com.mysql.cj.jdbc.Driver
 
   jpa:

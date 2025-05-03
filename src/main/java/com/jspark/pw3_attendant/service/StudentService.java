@@ -20,6 +20,8 @@ public class StudentService {
     public Student save(StudentRequest request) {
         Student student = new Student();
         student.setName(request.getName());
+        student.setBirth(request.getBirth());
+        student.setPhone(request.getPhone());
         return studentRepository.save(student);
     }
 

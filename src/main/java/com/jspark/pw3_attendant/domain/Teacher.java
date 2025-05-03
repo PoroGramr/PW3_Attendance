@@ -5,6 +5,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import java.time.LocalDate;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
@@ -20,17 +21,19 @@ public class Teacher extends BaseEntity {
 
     private String name;
 
-    private String subject;
+    private LocalDate birth;
+
+    private String phone;
+
+    public void setBirth(LocalDate birth) {
+        this.birth = birth;
+    }
+
+    public void setPhone(String phone) {
+        this.phone = phone;
+    }
 
     public void setName(String name) {
         this.name = name;
-    }
-
-    public void setSubject(String subject) {
-        this.subject = subject;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
     }
 }

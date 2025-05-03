@@ -1,6 +1,7 @@
 package com.jspark.pw3_attendant.domain;
 
 import jakarta.persistence.*;
+import java.time.LocalDate;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -18,4 +19,10 @@ public class Student extends BaseEntity {
 
     @Column(nullable = false)
     private String name;
+
+    @Column(nullable = false)
+    private LocalDate birth;
+
+    @Column
+    private String phone;
 }
