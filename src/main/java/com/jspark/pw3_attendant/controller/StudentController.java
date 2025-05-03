@@ -49,5 +49,11 @@ public class StudentController {
             .map(StudentResponse::from)
             .collect(Collectors.toList());
     }
+
+    @GetMapping("/year")
+    public List<StudentResponse> listByYear(@RequestParam Integer year) {
+        return studentService.getStudentsByYear(year);
+    }
+
 }
 

@@ -4,6 +4,7 @@ import com.jspark.pw3_attendant.domain.StudentClass.StudentClass;
 import com.jspark.pw3_attendant.service.ClassRoom.dto.ClassRoomResponse;
 import com.jspark.pw3_attendant.service.Student.dto.StudentResponse;
 import com.jspark.pw3_attendant.service.StudentClass.StudentClassService;
+import com.jspark.pw3_attendant.service.StudentClass.dto.ClassRoomIdStudentsResponse;
 import com.jspark.pw3_attendant.service.StudentClass.dto.ClassRoomStudentsResponse;
 import com.jspark.pw3_attendant.service.StudentClass.dto.StudentClassRequest;
 import com.jspark.pw3_attendant.service.StudentClass.dto.StudentClassResponse;
@@ -38,14 +39,14 @@ public class StudentClassController {
     }
 
 
-
-//    @GetMapping("/school-year/{schoolYear}")
-//    public List<ClassRoomStudentsResponse> getStudentsGroupedByClassRoom(@PathVariable Integer schoolYear) {
-//        return studentClassService.findAllStudentsGroupedByClassRoom(schoolYear);
-//    }
+    @Operation(summary = "특정 학년도에 존재하는 반 + 학생들 리스트")
+    @GetMapping("/school-year/{schoolYear}")
+    public List<ClassRoomIdStudentsResponse> getStudentsGroupedByClassRoom(@PathVariable Integer schoolYear) {
+        return studentClassService.findAllStudentsGroupedByClassRoom(schoolYear);
+    }
 
     @GetMapping("/class/{classRoomId}/year/{schoolYear}")
-    @Operation(summary = "해당 학년도 존재하는 반 리스트 + 학생들 리스트")
+    @Operation(summary = "해당 학년도 존재하는 특정 반 학생들 리스트")
     public ResponseEntity<List<StudentResponse>> getStudentsByClassAndYear(
         @PathVariable Long classRoomId,
         @PathVariable Integer schoolYear
