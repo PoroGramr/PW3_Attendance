@@ -1,6 +1,7 @@
-package com.jspark.pw3_attendant.repository;
+package com.jspark.pw3_attendant.repository.Student;
 
-import com.jspark.pw3_attendant.domain.Student;
+
+import com.jspark.pw3_attendant.domain.Student.Student;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 

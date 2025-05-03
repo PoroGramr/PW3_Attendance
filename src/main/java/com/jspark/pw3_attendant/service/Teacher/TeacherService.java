@@ -1,7 +1,8 @@
-package com.jspark.pw3_attendant.service;
+package com.jspark.pw3_attendant.service.Teacher;
 
-import com.jspark.pw3_attendant.domain.Teacher;
-import com.jspark.pw3_attendant.repository.TeacherRepository;
+
+import com.jspark.pw3_attendant.domain.Teacher.Teacher;
+import com.jspark.pw3_attendant.repository.Teacher.TeacherRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

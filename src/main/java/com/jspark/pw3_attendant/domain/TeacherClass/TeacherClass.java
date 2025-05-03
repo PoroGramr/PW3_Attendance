@@ -1,5 +1,8 @@
-package com.jspark.pw3_attendant.domain;
+package com.jspark.pw3_attendant.domain.TeacherClass;
 
+import com.jspark.pw3_attendant.domain.BaseEntity;
+import com.jspark.pw3_attendant.domain.ClassRoom.ClassRoom;
+import com.jspark.pw3_attendant.domain.Teacher.Teacher;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;

@@ -1,4 +1,4 @@
-package com.jspark.pw3_attendant.service.dto;
+package com.jspark.pw3_attendant.service.StudentClass.dto;
 
 import lombok.Getter;
 import lombok.NoArgsConstructor;

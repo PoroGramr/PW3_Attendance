@@ -1,6 +1,7 @@
-package com.jspark.pw3_attendant.repository;
+package com.jspark.pw3_attendant.repository.TeacherClass;
 
-import com.jspark.pw3_attendant.domain.TeacherClass;
+
+import com.jspark.pw3_attendant.domain.TeacherClass.TeacherClass;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;

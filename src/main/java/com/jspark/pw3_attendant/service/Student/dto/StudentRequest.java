@@ -1,4 +1,4 @@
-package com.jspark.pw3_attendant.service.dto;
+package com.jspark.pw3_attendant.service.Student.dto;
 
 import java.time.LocalDate;
 import lombok.Getter;

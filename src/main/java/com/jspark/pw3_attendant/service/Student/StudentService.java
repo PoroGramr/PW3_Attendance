@@ -1,8 +1,9 @@
-package com.jspark.pw3_attendant.service;
+package com.jspark.pw3_attendant.service.Student;
 
-import com.jspark.pw3_attendant.domain.Student;
-import com.jspark.pw3_attendant.repository.StudentRepository;
-import com.jspark.pw3_attendant.service.dto.StudentRequest;
+
+import com.jspark.pw3_attendant.domain.Student.Student;
+import com.jspark.pw3_attendant.repository.Student.StudentRepository;
+import com.jspark.pw3_attendant.service.Student.dto.StudentRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

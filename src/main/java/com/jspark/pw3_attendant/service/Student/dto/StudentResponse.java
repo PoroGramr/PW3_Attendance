@@ -1,6 +1,7 @@
-package com.jspark.pw3_attendant.service.dto;
+package com.jspark.pw3_attendant.service.Student.dto;
 
-import com.jspark.pw3_attendant.domain.Student;
+
+import com.jspark.pw3_attendant.domain.Student.Student;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
