@@ -6,6 +6,7 @@ import com.jspark.pw3_attendant.service.Attendance.AttendanceService;
 import com.jspark.pw3_attendant.service.Attendance.dto.AttendanceResponse;
 import com.jspark.pw3_attendant.service.Attendance.dto.StudentAttendanceResponse;
 import com.jspark.pw3_attendant.service.Attendance.dto.UpsertAttendanceRequest;
+import io.swagger.v3.oas.annotations.Operation;
 import java.time.LocalDate;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -24,6 +25,7 @@ public class AttendanceController {
     private final AttendanceService attendanceService;
 
     @PutMapping("/{studentClassId}/{date}")
+    @Operation(summary = "특정 학생, 특정일 출석 데이터 생성, 수정")
     public ResponseEntity<Void> upsertAttendance(
         @PathVariable Long studentClassId,
         @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
@@ -36,6 +38,7 @@ public class AttendanceController {
     }
 
     @GetMapping("/{studentClassId}")
+    @Operation(summary = "특정 학생의 출석 데이터 조회")
     public List<AttendanceResponse> getAttendancesByStudentClass(@PathVariable Long studentClassId) {
         return attendanceService.findByStudentClass(studentClassId).stream()
             .map(AttendanceResponse::from)
@@ -46,6 +49,7 @@ public class AttendanceController {
      * 해당 반 id, 해당 학년도, 해당 일자
      * */
     @GetMapping("/year/{schoolYear}/date/{date}")
+    @Operation(summary = "특정 학년도, 특정일 학생 전체 출석 여부 조회")
     public ResponseEntity<List<StudentAttendanceResponse>> getYearAttendanceByDate(
         @PathVariable Integer schoolYear,
         @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
@@ -58,6 +62,7 @@ public class AttendanceController {
      * 해당 반 id, 해당 학년도, 해당 일자
      * */
     @GetMapping("/class/{classRoomId}/year/{schoolYear}/date/{date}")
+    @Operation(summary = "특정 반, 특정 학년도, 특정일 출석 데이터 조회")
     public ResponseEntity<List<StudentAttendanceResponse>> getClassAttendanceByDate(
         @PathVariable Long classRoomId,
         @PathVariable Integer schoolYear,
@@ -74,6 +79,7 @@ public class AttendanceController {
      * GET /attendances/classrooms/{classRoomId}/date/{date}
      */
     @GetMapping("/classrooms/{classRoomId}/date/{date}")
+    @Operation(summary = "특정 반, 특정일 출석 데이터 조회")
     public ResponseEntity<List<StudentAttendanceResponse>> getAttendanceByClassAndDate(
         @PathVariable Long classRoomId,
         @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date

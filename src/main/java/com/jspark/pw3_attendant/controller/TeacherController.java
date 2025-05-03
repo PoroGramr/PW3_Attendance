@@ -8,6 +8,7 @@ import com.jspark.pw3_attendant.service.Student.dto.StudentResponse;
 import com.jspark.pw3_attendant.service.Teacher.TeacherService;
 import com.jspark.pw3_attendant.service.Teacher.dto.TeacherRequest;
 import com.jspark.pw3_attendant.service.Teacher.dto.TeacherResponse;
+import io.swagger.v3.oas.annotations.Operation;
 import java.util.List;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -29,6 +30,7 @@ public class TeacherController {
      * 선생님 등록
      */
     @PostMapping
+    @Operation(summary = "선생님 생성")
     public TeacherResponse createTeacher(@RequestBody TeacherRequest request) {
         Teacher savedTeacher = teacherService.save(request);
         return TeacherResponse.from(savedTeacher);
@@ -38,6 +40,7 @@ public class TeacherController {
      * 선생님 단건 조회
      */
     @GetMapping("/{id}")
+    @Operation(summary = "선생님 단일 조회")
     public TeacherResponse getTeacher(@PathVariable Long id) {
         Teacher teacher = teacherService.findById(id);
         return TeacherResponse.from(teacher);
@@ -47,6 +50,7 @@ public class TeacherController {
      * 모든 선생님 조회
      */
     @GetMapping
+    @Operation(summary = "선생님 전체 조회")
     public List<TeacherResponse> getAllTeacher() {
         return teacherService.findAll()
             .stream()

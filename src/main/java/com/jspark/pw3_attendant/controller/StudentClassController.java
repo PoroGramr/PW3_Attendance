@@ -22,12 +22,14 @@ public class StudentClassController {
     private final StudentClassService studentClassService;
 
     @PostMapping
+    @Operation(summary = "특정 학년도에 특정 학생을 반에 배정")
     public StudentClassResponse createStudentClass(@RequestBody StudentClassRequest request) {
         StudentClass studentClass = studentClassService.save(request);
         return StudentClassResponse.from(studentClass);
     }
 
     @GetMapping("/classroom/{classRoomId}")
+    @Operation(summary = "특정 학년도에 특정 반의 학생 리스트 조회")
     public List<StudentSummaryResponse> getStudentsByClassRoomAndYear(
         @PathVariable Long classRoomId,
         @RequestParam Integer schoolYear
@@ -36,13 +38,14 @@ public class StudentClassController {
     }
 
 
-    @Operation(summary = "해당 학년도 존재하는 반 리스트 + 학생들 리스트")
-    @GetMapping("/school-year/{schoolYear}")
-    public List<ClassRoomStudentsResponse> getStudentsGroupedByClassRoom(@PathVariable Integer schoolYear) {
-        return studentClassService.findAllStudentsGroupedByClassRoom(schoolYear);
-    }
+
+//    @GetMapping("/school-year/{schoolYear}")
+//    public List<ClassRoomStudentsResponse> getStudentsGroupedByClassRoom(@PathVariable Integer schoolYear) {
+//        return studentClassService.findAllStudentsGroupedByClassRoom(schoolYear);
+//    }
 
     @GetMapping("/class/{classRoomId}/year/{schoolYear}")
+    @Operation(summary = "해당 학년도 존재하는 반 리스트 + 학생들 리스트")
     public ResponseEntity<List<StudentResponse>> getStudentsByClassAndYear(
         @PathVariable Long classRoomId,
         @PathVariable Integer schoolYear
