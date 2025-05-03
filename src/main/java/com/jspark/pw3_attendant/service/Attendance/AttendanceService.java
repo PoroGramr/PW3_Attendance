@@ -73,4 +73,28 @@ public class AttendanceService {
         return result;
     }
 
+    public List<StudentAttendanceResponse> findYearAttendances(int schoolYear, LocalDate date) {
+        // 1) 해당 학년도 전체 학생반 조회
+        List<StudentClass> all = studentClassRepository.findAllBySchoolYear(schoolYear);
+
+        // 2) 각 학생반마다 date 기준 출석 조회 & DTO 변환
+        List<StudentAttendanceResponse> result = new ArrayList<>();
+        for (StudentClass sc : all) {
+            Optional<Attendance> att = attendanceRepository
+                .findByStudentClassIdAndDate(sc.getId(), date);
+
+            String status = att
+                .map(a -> a.getStatus().name())
+                .orElse("UNCHECKED");
+
+            result.add(new StudentAttendanceResponse(
+                sc.getStudent().getId(),
+                sc.getStudent().getName(),
+                status
+            ));
+        }
+        return result;
+    }
+
+
 }

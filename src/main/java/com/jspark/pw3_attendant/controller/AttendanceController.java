@@ -3,9 +3,8 @@ package com.jspark.pw3_attendant.controller;
 import com.jspark.pw3_attendant.domain.Attendance.Attendance.AttendanceStatus;
 import com.jspark.pw3_attendant.service.Attendance.AttendanceService;
 
-
-import com.jspark.pw3_attendant.service.Attendance.dto.AttendanceRequest;
 import com.jspark.pw3_attendant.service.Attendance.dto.AttendanceResponse;
+import com.jspark.pw3_attendant.service.Attendance.dto.StudentAttendanceResponse;
 import com.jspark.pw3_attendant.service.Attendance.dto.UpsertAttendanceRequest;
 import java.time.LocalDate;
 import lombok.RequiredArgsConstructor;
@@ -42,4 +41,32 @@ public class AttendanceController {
             .map(AttendanceResponse::from)
             .collect(Collectors.toList());
     }
+
+    /**
+     * 해당 반 id, 해당 학년도, 해당 일자
+     * */
+    @GetMapping("/year/{schoolYear}/date/{date}")
+    public ResponseEntity<List<StudentAttendanceResponse>> getYearAttendanceByDate(
+        @PathVariable Integer schoolYear,
+        @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
+    ) {
+        List<StudentAttendanceResponse> list =
+            attendanceService.findYearAttendances(schoolYear, date);
+        return ResponseEntity.ok(list);
+    }
+    /**
+     * 해당 반 id, 해당 학년도, 해당 일자
+     * */
+    @GetMapping("/class/{classRoomId}/year/{schoolYear}/date/{date}")
+    public ResponseEntity<List<StudentAttendanceResponse>> getClassAttendanceByDate(
+        @PathVariable Long classRoomId,
+        @PathVariable Integer schoolYear,
+        @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
+    ) {
+        List<StudentAttendanceResponse> list =
+            attendanceService.findStudentAttendances(classRoomId, schoolYear, date);
+        return ResponseEntity.ok(list);
+    }
+
+
 }

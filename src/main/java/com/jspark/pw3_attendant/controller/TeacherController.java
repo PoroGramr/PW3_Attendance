@@ -1,10 +1,13 @@
 package com.jspark.pw3_attendant.controller;
 
 import com.jspark.pw3_attendant.domain.Student.Student;
+import com.jspark.pw3_attendant.domain.Teacher.Teacher;
 import com.jspark.pw3_attendant.service.Student.StudentService;
 import com.jspark.pw3_attendant.service.Student.dto.StudentRequest;
 import com.jspark.pw3_attendant.service.Student.dto.StudentResponse;
 import com.jspark.pw3_attendant.service.Teacher.TeacherService;
+import com.jspark.pw3_attendant.service.Teacher.dto.TeacherRequest;
+import com.jspark.pw3_attendant.service.Teacher.dto.TeacherResponse;
 import java.util.List;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -23,31 +26,31 @@ public class TeacherController {
     private final TeacherService teacherService;
 
     /**
-     * 학생 등록
+     * 선생님 등록
      */
     @PostMapping
-    public StudentResponse createStudent(@RequestBody StudentRequest request) {
-        Student savedStudent = studentService.save(request);
-        return StudentResponse.from(savedStudent);
+    public TeacherResponse createTeacher(@RequestBody TeacherRequest request) {
+        Teacher savedTeacher = teacherService.save(request);
+        return TeacherResponse.from(savedTeacher);
     }
 
     /**
-     * 학생 단건 조회
+     * 선생님 단건 조회
      */
     @GetMapping("/{id}")
-    public StudentResponse getStudent(@PathVariable Long id) {
-        Student student = studentService.findById(id);
-        return StudentResponse.from(student);
+    public TeacherResponse getTeacher(@PathVariable Long id) {
+        Teacher teacher = teacherService.findById(id);
+        return TeacherResponse.from(teacher);
     }
 
     /**
-     * 모든 학생 조회
+     * 모든 선생님 조회
      */
     @GetMapping
-    public List<StudentResponse> getAllStudents() {
-        return studentService.findAll()
+    public List<TeacherResponse> getAllTeacher() {
+        return teacherService.findAll()
             .stream()
-            .map(StudentResponse::from)
+            .map(TeacherResponse::from)
             .collect(Collectors.toList());
     }
 
