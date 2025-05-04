@@ -3,6 +3,7 @@ package com.jspark.pw3_attendant.service.Teacher;
 
 import com.jspark.pw3_attendant.domain.Teacher.Teacher;
 import com.jspark.pw3_attendant.repository.Teacher.TeacherRepository;
+import com.jspark.pw3_attendant.service.Teacher.dto.TeacherRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,10 +27,13 @@ public class TeacherService {
     }
 
     @Transactional
-    public Teacher save(Teacher teacher) {
+    public Teacher save(TeacherRequest request) {
+        Teacher teacher = new Teacher();
+        teacher.setName(request.getName());
+        teacher.setBirth(request.getBirth());
+        teacher.setPhone(request.getPhone());
         return teacherRepository.save(teacher);
     }
-
     @Transactional
     public void delete(Long teacherId) {
         teacherRepository.deleteById(teacherId);

@@ -10,6 +10,7 @@ import com.jspark.pw3_attendant.repository.StudentClass.StudentClassRepository;
 import com.jspark.pw3_attendant.service.Attendance.dto.StudentAttendanceResponse;
 import java.util.ArrayList;
 import java.util.Optional;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -72,5 +73,62 @@ public class AttendanceService {
 
         return result;
     }
+
+    public List<StudentAttendanceResponse> findYearAttendances(int schoolYear, LocalDate date) {
+        // 1) 해당 학년도 전체 학생반 조회
+        List<StudentClass> all = studentClassRepository.findAllBySchoolYear(schoolYear);
+
+        // 2) 각 학생반마다 date 기준 출석 조회 & DTO 변환
+        List<StudentAttendanceResponse> result = new ArrayList<>();
+        for (StudentClass sc : all) {
+            Optional<Attendance> att = attendanceRepository
+                .findByStudentClassIdAndDate(sc.getId(), date);
+
+            String status = att
+                .map(a -> a.getStatus().name())
+                .orElse("UNCHECKED");
+
+            result.add(new StudentAttendanceResponse(
+                sc.getStudent().getId(),
+                sc.getStudent().getName(),
+                status
+            ));
+        }
+        return result;
+    }
+
+    /**
+     * classRoomId+date로 학년도별 StudentClass 조회 → 각 학생의 출석 상태 반환
+     */
+    public List<StudentAttendanceResponse> findStudentAttendancesByClassAndDate(
+        Long classRoomId,
+        LocalDate date
+    ) {
+        // 1) date 기준 학년도 계산 (3월 시작 가정)
+        int schoolYear = date.getMonthValue() >= 3
+            ? date.getYear()
+            : date.getYear() - 1;
+
+        // 2) 해당 학년도, 해당 반에 속한 studentClass 모두 조회
+        List<StudentClass> scList =
+            studentClassRepository.findAllByClassRoom_IdAndSchoolYear(classRoomId, schoolYear);
+
+        // 3) 각 studentClass별로 attendance 조회 후 DTO 변환
+        return scList.stream()
+            .map(sc -> {
+                Optional<Attendance> opt =
+                    attendanceRepository.findByStudentClassIdAndDate(sc.getId(), date);
+                String status = opt
+                    .map(a -> a.getStatus().name())
+                    .orElse("UNCHECKED");
+                return new StudentAttendanceResponse(
+                    sc.getStudent().getId(),
+                    sc.getStudent().getName(),
+                    status
+                );
+            })
+            .collect(Collectors.toList());
+    }
+
 
 }

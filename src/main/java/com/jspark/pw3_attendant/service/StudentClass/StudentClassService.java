@@ -7,8 +7,12 @@ import com.jspark.pw3_attendant.domain.StudentClass.StudentClass;
 import com.jspark.pw3_attendant.repository.ClassRoom.ClassRoomRepository;
 import com.jspark.pw3_attendant.repository.Student.StudentRepository;
 import com.jspark.pw3_attendant.repository.StudentClass.StudentClassRepository;
+import com.jspark.pw3_attendant.service.ClassRoom.dto.ClassRoomResponse;
+import com.jspark.pw3_attendant.service.Student.dto.StudentResponse;
+import com.jspark.pw3_attendant.service.StudentClass.dto.ClassRoomIdStudentsResponse;
 import com.jspark.pw3_attendant.service.StudentClass.dto.ClassRoomStudentsResponse;
 import com.jspark.pw3_attendant.service.StudentClass.dto.StudentClassRequest;
+import com.jspark.pw3_attendant.service.StudentClass.dto.StudentClassSummaryResponse;
 import com.jspark.pw3_attendant.service.StudentClass.dto.StudentSummaryResponse;
 import java.util.Comparator;
 import java.util.List;
@@ -51,33 +55,57 @@ public class StudentClassService {
     }
 
     @Transactional(readOnly = true)
-    public List<ClassRoomStudentsResponse> findAllStudentsGroupedByClassRoom(Integer schoolYear) {
+    public List<ClassRoomIdStudentsResponse> findAllStudentsGroupedByClassRoom(Integer schoolYear) {
+        // 1) year 에 해당하는 매핑 전부 로드
         List<StudentClass> studentClasses = studentClassRepository.findAllBySchoolYear(schoolYear);
 
-        Map<ClassRoom, List<StudentClass>> grouped = studentClasses.stream()
-            .collect(Collectors.groupingBy(StudentClass::getClassRoom));
+        // 2) 반별로 그룹핑
+        Map<ClassRoom, List<StudentClass>> byRoom =
+            studentClasses.stream()
+                .collect(Collectors.groupingBy(StudentClass::getClassRoom));
 
-        return grouped.entrySet().stream()
+        // 3) DTO 변환
+        return byRoom.entrySet().stream()
             .map(entry -> {
-                ClassRoom classRoom = entry.getKey();
-                List<StudentSummaryResponse> students = entry.getValue().stream()
-                    .map(sc -> new StudentSummaryResponse(
-                        sc.getStudent().getId(),
-                        sc.getStudent().getName()
-                    ))
+                ClassRoom room = entry.getKey();
+                List<StudentClassSummaryResponse> students = entry.getValue().stream()
+                    .map(StudentClassSummaryResponse::from)
                     .collect(Collectors.toList());
 
-                return new ClassRoomStudentsResponse(
-                    classRoom.getId(),
-                    classRoom.getSchoolType().name(),
-                    classRoom.getGrade(),
-                    classRoom.getClassNumber(),
+                return new ClassRoomIdStudentsResponse(
+                    room.getId(),
+                    room.getSchoolType().name(),
+                    room.getGrade(),
+                    room.getClassNumber(),
                     students
                 );
             })
-            .sorted(Comparator.comparing(ClassRoomStudentsResponse::getGrade)
-                .thenComparing(ClassRoomStudentsResponse::getClassNumber))
+            // 반 정렬 (학년→반 번호)
+            .sorted(Comparator
+                .comparing(ClassRoomIdStudentsResponse::getGrade)
+                .thenComparing(ClassRoomIdStudentsResponse::getClassNumber))
             .collect(Collectors.toList());
     }
+
+    public List<StudentResponse> findStudentsByClassAndYear(Long classRoomId, Integer schoolYear) {
+        return studentClassRepository.findAllByClassRoom_IdAndSchoolYear(classRoomId, schoolYear)
+            .stream()
+            .map(StudentResponse::from)
+            .collect(Collectors.toList());
+    }
+
+    /** 해당 학년도에 개설된 반들을 중복 제거 후 DTO로 반환 */
+    public List<ClassRoomResponse> findClassRoomsByYear(Integer schoolYear) {
+        return studentClassRepository.findAllBySchoolYear(schoolYear).stream()
+            // StudentClass → ClassRoom
+            .map(StudentClass::getClassRoom)
+            // 중복 제거 (ID 기준)
+            .distinct()
+            // DTO 변환
+            .map(ClassRoomResponse::from)
+            .collect(Collectors.toList());
+    }
+
+
 
 }

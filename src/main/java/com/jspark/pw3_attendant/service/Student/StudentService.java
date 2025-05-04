@@ -3,7 +3,10 @@ package com.jspark.pw3_attendant.service.Student;
 
 import com.jspark.pw3_attendant.domain.Student.Student;
 import com.jspark.pw3_attendant.repository.Student.StudentRepository;
+import com.jspark.pw3_attendant.repository.StudentClass.StudentClassRepository;
 import com.jspark.pw3_attendant.service.Student.dto.StudentRequest;
+import com.jspark.pw3_attendant.service.Student.dto.StudentResponse;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,6 +19,7 @@ import java.util.List;
 public class StudentService {
 
     private final StudentRepository studentRepository;
+    private final StudentClassRepository studentClassRepository;
 
     @Transactional
     public Student save(StudentRequest request) {
@@ -33,5 +37,11 @@ public class StudentService {
 
     public List<Student> findAll() {
         return studentRepository.findAll();
+    }
+
+    public List<StudentResponse> getStudentsByYear(Integer year) {
+        return studentClassRepository.findAllBySchoolYear(year).stream()
+            .map(StudentResponse::from)
+            .collect(Collectors.toList());
     }
 }

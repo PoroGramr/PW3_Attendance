@@ -1,8 +1,11 @@
 package com.jspark.pw3_attendant.domain.Student;
 
 import com.jspark.pw3_attendant.domain.BaseEntity;
+import com.jspark.pw3_attendant.domain.StudentClass.StudentClass;
 import jakarta.persistence.*;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -26,4 +29,7 @@ public class Student extends BaseEntity {
 
     @Column
     private String phone;
+
+    @OneToMany(mappedBy = "student", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<StudentClass> studentClasses = new ArrayList<>();
 }

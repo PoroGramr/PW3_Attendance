@@ -16,5 +16,9 @@ public interface StudentClassRepository extends JpaRepository<StudentClass, Long
 
     List<StudentClass> findAllBySchoolYear(Integer schoolYear);
 
+    List<StudentClass> findAllByClassRoom_IdAndSchoolYear(Long classRoomId, Integer schoolYear);
+
+
+
 
 }
