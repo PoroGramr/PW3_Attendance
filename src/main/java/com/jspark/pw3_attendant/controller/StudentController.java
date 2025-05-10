@@ -4,8 +4,10 @@ import com.jspark.pw3_attendant.domain.Student.Student;
 import com.jspark.pw3_attendant.service.Student.StudentService;
 import com.jspark.pw3_attendant.service.Student.dto.StudentRequest;
 import com.jspark.pw3_attendant.service.Student.dto.StudentResponse;
+import com.jspark.pw3_attendant.service.StudentClass.StudentClassService;
 import io.swagger.v3.oas.annotations.Operation;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -17,7 +19,7 @@ import java.util.stream.Collectors;
 public class StudentController {
 
     private final StudentService studentService;
-
+    private final StudentClassService studentClassService;
     /**
      * 학생 등록
      */
@@ -26,6 +28,18 @@ public class StudentController {
     public StudentResponse createStudent(@RequestBody StudentRequest request) {
         Student savedStudent = studentService.save(request);
         return StudentResponse.from(savedStudent);
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<Student> updateStudent(@PathVariable Long id, @RequestBody Student studentDetails) {
+        Student updatedStudent = studentService.updateStudent(id, studentDetails);
+        return ResponseEntity.ok(updatedStudent);
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<String> deleteStudent(@PathVariable Long id) {
+        studentService.deleteStudent(id);
+        return ResponseEntity.ok("학생이 삭제되었습니다.");
     }
 
     /**
@@ -48,6 +62,11 @@ public class StudentController {
             .stream()
             .map(StudentResponse::from)
             .collect(Collectors.toList());
+    }
+
+    @GetMapping("/studentsWithClassInfo")
+    public List<StudentResponse> getStudentsWithClassInfo(@RequestParam Integer schoolYear) {
+        return studentClassService.findStudentsWithClassInfo(schoolYear);
     }
 
     @GetMapping("/year")

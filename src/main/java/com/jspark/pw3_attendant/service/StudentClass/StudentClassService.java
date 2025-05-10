@@ -107,5 +107,42 @@ public class StudentClassService {
     }
 
 
+    public List<StudentResponse> findStudentsWithClassInfo(Integer schoolYear) {
+        // 1) schoolYear에 해당하는 StudentClass 목록을 가져옵니다.
+        List<StudentClass> studentClasses = studentClassRepository.findAllBySchoolYear(schoolYear);
+
+        // 2) 학생 중 StudentClass가 없거나 학년 정보가 없는 학생들을 처리하기 위해
+        List<Student> studentsWithoutClass = studentRepository.findAllByStudentClassesIsEmpty();
+
+        // 3) 학생 정보와 반 정보를 포함하여 변환
+        List<StudentResponse> studentResponses = studentClasses.stream()
+            .map(studentClass -> {
+                Student student = studentClass.getStudent();
+                return new StudentResponse(
+                    student.getId(),
+                    student.getName(),
+                    student.getBirth(),
+                    student.getPhone(),
+                    studentClass.getSchoolYear(),  // schoolYear가 있을 때만 설정
+                    studentClass.getClassRoom().getId()
+                );
+            })
+            .collect(Collectors.toList());
+
+        // 4) 학년 정보가 없는 학생들도 포함
+        studentResponses.addAll(studentsWithoutClass.stream()
+            .map(student -> new StudentResponse(
+                student.getId(),
+                student.getName(),
+                student.getBirth(),
+                student.getPhone(),
+                null,  // schoolYear가 없는 학생은 null로 처리
+                null   // 반 정보도 없으므로 null
+            ))
+            .collect(Collectors.toList()));
+
+        return studentResponses;
+    }
+
 
 }

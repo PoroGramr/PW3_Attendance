@@ -30,6 +30,25 @@ public class StudentService {
         return studentRepository.save(student);
     }
 
+    public Student updateStudent(Long id, Student studentDetails) {
+        Student student = studentRepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("학생을 찾을 수 없습니다."));
+
+        student.setName(studentDetails.getName());
+        student.setBirth(studentDetails.getBirth());
+        student.setPhone(studentDetails.getPhone());
+
+        return studentRepository.save(student);
+    }
+
+    @Transactional
+    public void deleteStudent(Long id) {
+        Student student = studentRepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("학생을 찾을 수 없습니다."));
+        System.out.println("삭제 들어감");
+        studentRepository.delete(student);
+    }
+
     public Student findById(Long id) {
         return studentRepository.findById(id)
             .orElseThrow(() -> new IllegalArgumentException("학생을 찾을 수 없습니다."));
