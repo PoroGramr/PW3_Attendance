@@ -38,7 +38,7 @@ public class AttendanceTeacher extends BaseEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(nullable = false)
     private Teacher teacher;  // 출석 체크 대상인 선생님
 
