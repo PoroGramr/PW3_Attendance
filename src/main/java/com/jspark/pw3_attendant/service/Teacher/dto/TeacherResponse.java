@@ -3,6 +3,7 @@ package com.jspark.pw3_attendant.service.Teacher.dto;
 
 import com.jspark.pw3_attendant.domain.Student.Student;
 import com.jspark.pw3_attendant.domain.Teacher.Teacher;
+import com.jspark.pw3_attendant.domain.Teacher.Teacher.TeacherStatus;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
@@ -13,12 +14,15 @@ public class TeacherResponse {
     private Long id;
     private String name;
     private String number;
+    private TeacherStatus status;
+
 
     public static TeacherResponse from(Teacher teacher) {
         return new TeacherResponse(
             teacher.getId(),
             teacher.getName(),
-            teacher.getPhone()
+            teacher.getPhone(),
+            teacher.getStatus()
         );
     }
 }

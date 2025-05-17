@@ -2,6 +2,7 @@ package com.jspark.pw3_attendant.service.Teacher;
 
 
 import com.jspark.pw3_attendant.domain.Teacher.Teacher;
+import com.jspark.pw3_attendant.domain.Teacher.Teacher.TeacherStatus;
 import com.jspark.pw3_attendant.repository.Teacher.TeacherRepository;
 import com.jspark.pw3_attendant.service.Teacher.dto.TeacherRequest;
 import lombok.RequiredArgsConstructor;
@@ -32,6 +33,7 @@ public class TeacherService {
         teacher.setName(request.getName());
         teacher.setBirth(request.getBirth());
         teacher.setPhone(request.getPhone());
+        teacher.setStatus(TeacherStatus.ACTIVE);
         return teacherRepository.save(teacher);
     }
     @Transactional

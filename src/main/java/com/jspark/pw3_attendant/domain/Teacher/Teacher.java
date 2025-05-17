@@ -1,7 +1,10 @@
 package com.jspark.pw3_attendant.domain.Teacher;
 
 import com.jspark.pw3_attendant.domain.BaseEntity;
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -26,6 +29,15 @@ public class Teacher extends BaseEntity {
 
     private String phone;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private TeacherStatus status;  // 선생님의 상태 (ACTIVE, INACTIVE 등)
+
+    public enum TeacherStatus {
+        ACTIVE,    // 재직 중
+        INACTIVE   // 퇴직
+    }
+
     public void setBirth(LocalDate birth) {
         this.birth = birth;
     }
@@ -36,5 +48,9 @@ public class Teacher extends BaseEntity {
 
     public void setName(String name) {
         this.name = name;
+    }
+
+    public void setStatus(TeacherStatus status) {
+        this.status = status;
     }
 }
