@@ -6,6 +6,7 @@ import com.jspark.pw3_attendant.repository.Attendance.AttendanceTeacherRepositor
 import com.jspark.pw3_attendant.repository.Teacher.TeacherRepository;
 import com.jspark.pw3_attendant.service.Attendance.dto.TeacherAttendance;
 import java.time.LocalDate;
+import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
@@ -83,6 +84,8 @@ public class AttendanceTeacherService {
                 ));
             }
         });
+
+        attendanceTeacherDTOs.sort(Comparator.comparing(TeacherAttendance::getTeacherName));
 
         return attendanceTeacherDTOs;
     }
