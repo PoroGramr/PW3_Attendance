@@ -31,7 +31,7 @@ public class ClassRoomService {
         ClassRoom classRoom = new ClassRoom();
         classRoom.setSchoolType(request.getSchoolType());
         classRoom.setGrade(request.getGrade());
-        classRoom.setClassNumber(request.getClassNumber()); // 🔥 이거 안 하면 또 터진다
+        classRoom.setClassNumber(request.getClassNumber());
         return classRoomRepository.save(classRoom);
     }
     @Transactional
