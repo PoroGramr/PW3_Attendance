@@ -140,6 +140,7 @@ public class AttendanceService {
         return sundays.stream()
             .map(sunday -> {
                 long attendedCount = attendanceRepository.countByDateAndStatus(sunday, AttendanceStatus.ATTEND);
+                attendedCount += attendanceRepository.countByDateAndStatus(sunday, AttendanceStatus.LATE);
                 return new SundayAttendanceSummaryResponse(sunday, attendedCount, totalStudentCount);
             })
             .collect(Collectors.toList());
