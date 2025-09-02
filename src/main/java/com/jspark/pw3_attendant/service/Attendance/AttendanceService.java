@@ -6,8 +6,10 @@ import com.jspark.pw3_attendant.domain.Attendance.Attendance.AttendanceStatus;
 import com.jspark.pw3_attendant.domain.StudentClass.StudentClass;
 
 import com.jspark.pw3_attendant.repository.Attendance.AttendanceRepository;
+import com.jspark.pw3_attendant.repository.Student.StudentRepository;
 import com.jspark.pw3_attendant.repository.StudentClass.StudentClassRepository;
 import com.jspark.pw3_attendant.service.Attendance.dto.StudentAttendanceResponse;
+import com.jspark.pw3_attendant.service.Attendance.dto.SundayAttendanceSummaryResponse;
 import java.util.ArrayList;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -25,6 +27,7 @@ public class AttendanceService {
 
     private final AttendanceRepository attendanceRepository;
     private final StudentClassRepository studentClassRepository;
+    private final StudentRepository studentRepository;
 
     @Transactional
     public boolean upsertAttendance(Long studentClassId, LocalDate date, AttendanceStatus status) {
@@ -130,5 +133,15 @@ public class AttendanceService {
             .collect(Collectors.toList());
     }
 
+    public List<SundayAttendanceSummaryResponse> getSundayAttendanceSummary() {
+        List<LocalDate> sundays = attendanceRepository.findDistinctSundays();
+        long totalStudentCount = studentRepository.count();
 
+        return sundays.stream()
+            .map(sunday -> {
+                long attendedCount = attendanceRepository.countByDateAndStatus(sunday, AttendanceStatus.ATTEND);
+                return new SundayAttendanceSummaryResponse(sunday, attendedCount, totalStudentCount);
+            })
+            .collect(Collectors.toList());
+    }
 }

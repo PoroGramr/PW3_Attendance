@@ -5,6 +5,7 @@ import com.jspark.pw3_attendant.service.Attendance.AttendanceService;
 
 import com.jspark.pw3_attendant.service.Attendance.dto.AttendanceResponse;
 import com.jspark.pw3_attendant.service.Attendance.dto.StudentAttendanceResponse;
+import com.jspark.pw3_attendant.service.Attendance.dto.SundayAttendanceSummaryResponse;
 import com.jspark.pw3_attendant.service.Attendance.dto.UpsertAttendanceRequest;
 import io.swagger.v3.oas.annotations.Operation;
 import java.time.LocalDate;
@@ -23,6 +24,12 @@ import java.util.stream.Collectors;
 public class AttendanceController {
 
     private final AttendanceService attendanceService;
+
+    @GetMapping("/summary/sundays")
+    @Operation(summary = "일요일별 전체 출석 요약 조회")
+    public ResponseEntity<List<SundayAttendanceSummaryResponse>> getSundayAttendanceSummary() {
+        return ResponseEntity.ok(attendanceService.getSundayAttendanceSummary());
+    }
 
     @PutMapping("/{studentClassId}/{date}")
     @Operation(summary = "특정 학생, 특정일 출석 데이터 생성, 수정")
