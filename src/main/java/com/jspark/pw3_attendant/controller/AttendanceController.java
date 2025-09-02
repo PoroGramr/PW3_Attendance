@@ -5,6 +5,7 @@ import com.jspark.pw3_attendant.service.Attendance.AttendanceService;
 
 import com.jspark.pw3_attendant.service.Attendance.dto.AttendanceResponse;
 import com.jspark.pw3_attendant.service.Attendance.dto.StudentAttendanceResponse;
+import com.jspark.pw3_attendant.service.Attendance.dto.ClassSundayAttendanceResponse;
 import com.jspark.pw3_attendant.service.Attendance.dto.SundayAttendanceSummaryResponse;
 import com.jspark.pw3_attendant.service.Attendance.dto.UpsertAttendanceRequest;
 import io.swagger.v3.oas.annotations.Operation;
@@ -99,4 +100,13 @@ public class AttendanceController {
         return ResponseEntity.ok(list);
     }
 
+    @GetMapping("/classrooms/{classRoomId}/sundays/summary")
+    @Operation(summary = "특정 반의 일요일별 출석 요약 조회")
+    public ResponseEntity<List<ClassSundayAttendanceResponse>> getSundayAttendanceSummaryForClass(
+        @PathVariable Long classRoomId
+    ) {
+        List<ClassSundayAttendanceResponse> list =
+            attendanceService.getSundayAttendanceSummaryForClass(classRoomId);
+        return ResponseEntity.ok(list);
+    }
 }

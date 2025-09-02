@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 public interface AttendanceRepository extends JpaRepository<Attendance, Long> {
 
@@ -27,4 +28,11 @@ public interface AttendanceRepository extends JpaRepository<Attendance, Long> {
     List<LocalDate> findDistinctSundays();
 
     long countByDateAndStatus(LocalDate date, AttendanceStatus status);
+
+    @Query("SELECT COUNT(a) FROM Attendance a " +
+        "JOIN a.studentClass sc " +
+        "WHERE sc.classRoom.id = :classRoomId " +
+        "AND a.date = :date " +
+        "AND a.status IN ('ATTEND', 'LATE')")
+    long countByClassRoomIdAndDateAndStatusIn(@Param("classRoomId") Long classRoomId, @Param("date") LocalDate date);
 }

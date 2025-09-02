@@ -21,6 +21,7 @@ public interface StudentClassRepository extends JpaRepository<StudentClass, Long
     @EntityGraph(attributePaths = {"student", "classRoom"})
     List<StudentClass> findAllByClassRoom_IdAndSchoolYear(Long classRoomId, Integer schoolYear);
 
+    long countBySchoolYear(Integer schoolYear);
 
-
+    long countByClassRoomIdAndSchoolYear(Long classRoomId, Integer schoolYear);
 }

@@ -8,6 +8,7 @@ import com.jspark.pw3_attendant.domain.StudentClass.StudentClass;
 import com.jspark.pw3_attendant.repository.Attendance.AttendanceRepository;
 import com.jspark.pw3_attendant.repository.Student.StudentRepository;
 import com.jspark.pw3_attendant.repository.StudentClass.StudentClassRepository;
+import com.jspark.pw3_attendant.service.Attendance.dto.ClassSundayAttendanceResponse;
 import com.jspark.pw3_attendant.service.Attendance.dto.StudentAttendanceResponse;
 import com.jspark.pw3_attendant.service.Attendance.dto.SundayAttendanceSummaryResponse;
 import java.util.ArrayList;
@@ -142,6 +143,26 @@ public class AttendanceService {
                 long attendedCount = attendanceRepository.countByDateAndStatus(sunday, AttendanceStatus.ATTEND);
                 attendedCount += attendanceRepository.countByDateAndStatus(sunday, AttendanceStatus.LATE);
                 return new SundayAttendanceSummaryResponse(sunday, attendedCount, totalStudentCount);
+            })
+            .collect(Collectors.toList());
+    }
+
+    public List<ClassSundayAttendanceResponse> getSundayAttendanceSummaryForClass(Long classRoomId) {
+        // 1. Get all Sundays from attendance data
+        List<LocalDate> sundays = attendanceRepository.findDistinctSundays();
+
+        return sundays.stream()
+            .map(sunday -> {
+                // 2. For each Sunday, calculate schoolYear
+                int schoolYear = sunday.getMonthValue() >= 3 ? sunday.getYear() : sunday.getYear() - 1;
+
+                // 3. Get total students in the class for that school year
+                long totalCount = studentClassRepository.countByClassRoomIdAndSchoolYear(classRoomId, schoolYear);
+
+                // 4. Get attended students
+                long attendedCount = attendanceRepository.countByClassRoomIdAndDateAndStatusIn(classRoomId, sunday);
+
+                return new ClassSundayAttendanceResponse(sunday, attendedCount, totalCount);
             })
             .collect(Collectors.toList());
     }
