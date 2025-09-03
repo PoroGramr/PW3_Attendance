@@ -4,23 +4,28 @@ package com.jspark.pw3_attendant.service.StudentClass;
 import com.jspark.pw3_attendant.domain.ClassRoom.ClassRoom;
 import com.jspark.pw3_attendant.domain.Student.Student;
 import com.jspark.pw3_attendant.domain.StudentClass.StudentClass;
+import com.jspark.pw3_attendant.domain.Teacher.Teacher;
+import com.jspark.pw3_attendant.domain.TeacherClass.TeacherClass;
 import com.jspark.pw3_attendant.repository.ClassRoom.ClassRoomRepository;
 import com.jspark.pw3_attendant.repository.Student.StudentRepository;
 import com.jspark.pw3_attendant.repository.StudentClass.StudentClassRepository;
-import com.jspark.pw3_attendant.service.ClassRoom.dto.ClassRoomResponse;
+import com.jspark.pw3_attendant.repository.TeacherClass.TeacherClassRepository;
+import com.jspark.pw3_attendant.service.ClassRoom.dto.ClassRoomTeacherResponse;
 import com.jspark.pw3_attendant.service.Student.dto.StudentResponse;
 import com.jspark.pw3_attendant.service.StudentClass.dto.ClassRoomIdStudentsResponse;
-import com.jspark.pw3_attendant.service.StudentClass.dto.ClassRoomStudentsResponse;
 import com.jspark.pw3_attendant.service.StudentClass.dto.StudentClassRequest;
 import com.jspark.pw3_attendant.service.StudentClass.dto.StudentClassSummaryResponse;
 import com.jspark.pw3_attendant.service.StudentClass.dto.StudentSummaryResponse;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.Comparator;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Service
 @RequiredArgsConstructor
@@ -30,6 +35,7 @@ public class StudentClassService {
     private final StudentClassRepository studentClassRepository;
     private final StudentRepository studentRepository;
     private final ClassRoomRepository classRoomRepository;
+    private final TeacherClassRepository teacherClassRepository;
 
     @Transactional
     public StudentClass save(StudentClassRequest request) {
@@ -72,11 +78,17 @@ public class StudentClassService {
                     .map(StudentClassSummaryResponse::from)
                     .collect(Collectors.toList());
 
+                // Find teacher for the classroom and year
+                String teacherName = teacherClassRepository.findByClassRoomIdAndSchoolYear(room.getId(), schoolYear)
+                    .map(teacherClass -> teacherClass.getTeacher().getName())
+                    .orElse(null);
+
                 return new ClassRoomIdStudentsResponse(
                     room.getId(),
                     room.getSchoolType().name(),
                     room.getGrade(),
                     room.getClassNumber(),
+                    teacherName,
                     students
                 );
             })
@@ -95,14 +107,25 @@ public class StudentClassService {
     }
 
     /** 해당 학년도에 개설된 반들을 중복 제거 후 DTO로 반환 */
-    public List<ClassRoomResponse> findClassRoomsByYear(Integer schoolYear) {
-        return studentClassRepository.findAllBySchoolYear(schoolYear).stream()
-            // StudentClass → ClassRoom
+    public List<ClassRoomTeacherResponse> findClassRoomsByYear(Integer schoolYear) {
+        List<ClassRoom> classRoomsFromStudents = studentClassRepository.findAllBySchoolYear(schoolYear).stream()
             .map(StudentClass::getClassRoom)
-            // 중복 제거 (ID 기준)
+            .collect(Collectors.toList());
+
+        List<ClassRoom> classRoomsFromTeachers = teacherClassRepository.findAllBySchoolYear(schoolYear).stream()
+            .map(TeacherClass::getClassRoom)
+            .collect(Collectors.toList());
+
+        List<ClassRoom> classRooms = Stream.concat(classRoomsFromStudents.stream(), classRoomsFromTeachers.stream())
             .distinct()
-            // DTO 변환
-            .map(ClassRoomResponse::from)
+            .collect(Collectors.toList());
+
+        return classRooms.stream()
+            .map(classRoom -> {
+                Optional<TeacherClass> teacherClassOpt = teacherClassRepository.findByClassRoomIdAndSchoolYear(classRoom.getId(), schoolYear);
+                Teacher teacher = teacherClassOpt.map(TeacherClass::getTeacher).orElse(null);
+                return new ClassRoomTeacherResponse(classRoom, teacher);
+            })
             .collect(Collectors.toList());
     }
 

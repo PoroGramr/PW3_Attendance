@@ -1,11 +1,10 @@
 package com.jspark.pw3_attendant.controller;
 
 import com.jspark.pw3_attendant.domain.StudentClass.StudentClass;
-import com.jspark.pw3_attendant.service.ClassRoom.dto.ClassRoomResponse;
+import com.jspark.pw3_attendant.service.ClassRoom.dto.ClassRoomTeacherResponse;
 import com.jspark.pw3_attendant.service.Student.dto.StudentResponse;
 import com.jspark.pw3_attendant.service.StudentClass.StudentClassService;
 import com.jspark.pw3_attendant.service.StudentClass.dto.ClassRoomIdStudentsResponse;
-import com.jspark.pw3_attendant.service.StudentClass.dto.ClassRoomStudentsResponse;
 import com.jspark.pw3_attendant.service.StudentClass.dto.StudentClassRequest;
 import com.jspark.pw3_attendant.service.StudentClass.dto.StudentClassResponse;
 import com.jspark.pw3_attendant.service.StudentClass.dto.StudentSummaryResponse;
@@ -57,14 +56,11 @@ public class StudentClassController {
 
     @GetMapping("/year/{schoolYear}/class-rooms")
     @Operation(summary = "해당 학년도 존재하는 반 리스트")
-    public ResponseEntity<List<ClassRoomResponse>> getClassRoomsByYear(
+    public ResponseEntity<List<ClassRoomTeacherResponse>> getClassRoomsByYear(
         @PathVariable Integer schoolYear
     ) {
-        List<ClassRoomResponse> rooms = studentClassService.findClassRoomsByYear(schoolYear);
+        List<ClassRoomTeacherResponse> rooms = studentClassService.findClassRoomsByYear(schoolYear);
         return ResponseEntity.ok(rooms);
     }
-
-
-
 
 }
