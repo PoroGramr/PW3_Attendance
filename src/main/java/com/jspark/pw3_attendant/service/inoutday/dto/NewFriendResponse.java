@@ -11,6 +11,7 @@ public class NewFriendResponse {
     private LocalDate birth;
     private String phone;
     private Long studentId;
+    private String studentName;
 
     public NewFriendResponse(NewFriend newFriend) {
         this.id = newFriend.getId();
@@ -19,6 +20,7 @@ public class NewFriendResponse {
         this.phone = newFriend.getPhone();
         if (newFriend.getStudent() != null) {
             this.studentId = newFriend.getStudent().getId();
+            this.studentName = newFriend.getStudent().getName();
         }
     }
 }

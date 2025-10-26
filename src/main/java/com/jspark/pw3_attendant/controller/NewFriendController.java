@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/api/new-friends")
+@RequestMapping("/new-friends")
 public class NewFriendController {
 
     private final NewFriendService newFriendService;
