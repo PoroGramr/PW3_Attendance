@@ -8,6 +8,7 @@ import com.jspark.pw3_attendant.service.Student.dto.MonthlyStudentRegistrationRe
 import com.jspark.pw3_attendant.service.Student.dto.StudentInfo;
 import com.jspark.pw3_attendant.service.Student.dto.StudentRequest;
 import com.jspark.pw3_attendant.service.Student.dto.StudentResponse;
+import java.time.LocalDate;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -72,8 +73,10 @@ public class StudentService {
 
     public List<MonthlyStudentRegistrationResponse> findStudentsByYearGroupByMonth(int year) {
         List<Student> students = studentRepository.findAllByYear(year);
+        LocalDate exclusionDate = LocalDate.of(2025, 5, 10);
 
         Map<Integer, List<StudentInfo>> monthlyStudents = students.stream()
+                .filter(student -> !student.getCreatedAt().toLocalDate().isEqual(exclusionDate))
                 .collect(Collectors.groupingBy(
                         student -> student.getCreatedAt().getMonthValue(),
                         Collectors.mapping(StudentInfo::from, Collectors.toList())
