@@ -5,6 +5,8 @@ import com.jspark.pw3_attendant.service.Student.StudentService;
 import com.jspark.pw3_attendant.service.Student.dto.StudentRequest;
 import com.jspark.pw3_attendant.service.Student.dto.StudentResponse;
 import com.jspark.pw3_attendant.service.StudentClass.StudentClassService;
+
+import com.jspark.pw3_attendant.service.Student.dto.MonthlyStudentRegistrationResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -74,5 +76,10 @@ public class StudentController {
         return studentService.getStudentsByYear(year);
     }
 
+    @GetMapping("/registrations/by-year/{year}")
+    @Operation(summary = "연도별 월별 학생 등록 현황")
+    public List<MonthlyStudentRegistrationResponse> getMonthlyRegistrations(@PathVariable int year) {
+        return studentService.findStudentsByYearGroupByMonth(year);
+    }
 }
 
