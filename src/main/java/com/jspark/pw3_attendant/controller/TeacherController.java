@@ -12,9 +12,12 @@ import io.swagger.v3.oas.annotations.Operation;
 import java.util.List;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -56,6 +59,19 @@ public class TeacherController {
             .stream()
             .map(TeacherResponse::from)
             .collect(Collectors.toList());
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<Teacher> updateTeacher(@PathVariable Long id, @RequestBody Teacher teacherDetails) {
+        Teacher updatedTeacher = teacherService.updateTeacher(id, teacherDetails);
+        return ResponseEntity.ok(updatedTeacher);
+    }
+
+    @DeleteMapping("/{id}")
+    @Operation(summary = "선생님 삭제")
+    public ResponseEntity<String> deleteTeacher(@PathVariable Long id) {
+        teacherService.deleteById(id);
+        return ResponseEntity.ok("선생님이 삭제되었습니다.");
     }
 
 }

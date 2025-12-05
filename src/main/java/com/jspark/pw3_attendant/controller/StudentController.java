@@ -50,8 +50,12 @@ public class StudentController {
     @GetMapping("/{id}")
     @Operation(summary = "학생 단일 조회")
     public StudentResponse getStudent(@PathVariable Long id) {
-        Student student = studentService.findById(id);
-        return StudentResponse.from(student);
+        try {
+            Student student = studentService.findById(id);
+            return StudentResponse.from(student);
+        } catch (IllegalArgumentException e) {
+            throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "학생을 찾을 수 없습니다.");
+        }
     }
 
     /**

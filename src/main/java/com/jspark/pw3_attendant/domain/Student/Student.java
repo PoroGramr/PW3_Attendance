@@ -10,11 +10,18 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import org.hibernate.annotations.SQLDelete;
+import org.hibernate.annotations.Where;
+
+import java.time.LocalDateTime;
+
 @Entity
 @Getter
 @Setter
 @NoArgsConstructor
 @Table(name = "student")
+@SQLDelete(sql = "UPDATE student SET deleted = true, deleted_at = CURRENT_TIMESTAMP WHERE id = ?")
+@Where(clause = "deleted = false")
 public class Student extends BaseEntity {
 
     @Id
@@ -29,6 +36,12 @@ public class Student extends BaseEntity {
 
     @Column
     private String phone;
+
+    @Column(nullable = false)
+    private boolean deleted = false;
+
+    @Column
+    private LocalDateTime deletedAt;
 
     @OneToMany(mappedBy = "student", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<StudentClass> studentClasses = new ArrayList<>();

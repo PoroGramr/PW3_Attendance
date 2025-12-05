@@ -1,11 +1,13 @@
 package com.jspark.pw3_attendant.service.Teacher;
 
 
+import com.jspark.pw3_attendant.domain.Student.Student;
 import com.jspark.pw3_attendant.domain.Teacher.Teacher;
 import com.jspark.pw3_attendant.domain.Teacher.Teacher.TeacherStatus;
 import com.jspark.pw3_attendant.repository.Teacher.TeacherRepository;
 import com.jspark.pw3_attendant.service.Teacher.dto.TeacherRequest;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -36,8 +38,20 @@ public class TeacherService {
         teacher.setStatus(TeacherStatus.ACTIVE);
         return teacherRepository.save(teacher);
     }
+
+    public Teacher updateTeacher(Long id, Teacher studentDetails) {
+        Teacher teacher = teacherRepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("선생님을 찾을 수 없습니다."));
+
+        teacher.setName(studentDetails.getName());
+        teacher.setBirth(studentDetails.getBirth());
+        teacher.setPhone(studentDetails.getPhone());
+
+        return teacherRepository.save(teacher);
+    }
+
     @Transactional
-    public void delete(Long teacherId) {
-        teacherRepository.deleteById(teacherId);
+    public void deleteById(Long id) {
+        teacherRepository.deleteById(id);
     }
 }

@@ -10,13 +10,18 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.SQLDelete;
+import org.hibernate.annotations.Where;
 
 @Entity
 @Getter
 @NoArgsConstructor
 @Table(name = "teacher")
+@SQLDelete(sql = "UPDATE teacher SET deleted = true, deleted_at = CURRENT_TIMESTAMP WHERE id = ?")
+@Where(clause = "deleted = false")
 public class Teacher extends BaseEntity {
 
     @Id
@@ -29,9 +34,16 @@ public class Teacher extends BaseEntity {
 
     private String phone;
 
+    // TODO : 미사용 변수 추후 삭제
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private TeacherStatus status;  // 선생님의 상태 (ACTIVE, INACTIVE 등)
+
+    @Column(nullable = false)
+    private boolean deleted = false;
+
+    @Column
+    private LocalDateTime deletedAt;
 
     public enum TeacherStatus {
         ACTIVE,    // 재직 중
