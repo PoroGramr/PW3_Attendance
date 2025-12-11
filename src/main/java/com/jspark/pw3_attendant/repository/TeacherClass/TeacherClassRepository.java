@@ -1,6 +1,7 @@
 package com.jspark.pw3_attendant.repository.TeacherClass;
 
 
+import com.jspark.pw3_attendant.domain.Teacher.Teacher;
 import com.jspark.pw3_attendant.domain.TeacherClass.TeacherClass;
 import java.util.List;
 import java.util.Optional;
@@ -12,4 +13,6 @@ public interface TeacherClassRepository extends JpaRepository<TeacherClass, Long
     Optional<TeacherClass> findByClassRoomIdAndSchoolYear(Long classRoomId,Integer schoolYear);
 
     List<TeacherClass> findAllBySchoolYear(Integer schoolYear);
+
+    List<TeacherClass> findAllByTeacher(Teacher teacher);
 }

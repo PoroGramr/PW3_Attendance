@@ -10,6 +10,7 @@ import com.jspark.pw3_attendant.service.Teacher.dto.TeacherRequest;
 import com.jspark.pw3_attendant.service.Teacher.dto.TeacherResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -33,30 +34,26 @@ public class TeacherController {
     @Operation(summary = "선생님 생성")
     public TeacherResponse createTeacher(@RequestBody TeacherRequest request) {
         Teacher savedTeacher = teacherService.save(request);
-        return TeacherResponse.from(savedTeacher);
+        return TeacherResponse.from(savedTeacher, Map.of());
     }
 
     @GetMapping("/{id}")
     @Operation(summary = "선생님 단일 조회")
     public TeacherResponse getTeacher(@PathVariable Long id) {
-        Teacher teacher = teacherService.findById(id);
-        return TeacherResponse.from(teacher);
+        return teacherService.findById(id);
     }
 
     @GetMapping
     @Operation(summary = "선생님 전체 조회")
     public List<TeacherResponse> getAllTeacher() {
-        return teacherService.findAll()
-            .stream()
-            .map(TeacherResponse::from)
-            .collect(Collectors.toList());
+        return teacherService.findAll();
     }
 
     @PutMapping("/{id}")
     @Operation(summary = "선생님 수정")
-    public ResponseEntity<Teacher> updateTeacher(@PathVariable Long id, @RequestBody TeacherRequest request) {
+    public ResponseEntity<TeacherResponse> updateTeacher(@PathVariable Long id, @RequestBody TeacherRequest request) {
         Teacher updatedTeacher = teacherService.updateTeacher(id, request);
-        return ResponseEntity.ok(updatedTeacher);
+        return ResponseEntity.ok(TeacherResponse.from(updatedTeacher, Map.of()));
     }
 
     @DeleteMapping("/{id}")
