@@ -3,8 +3,6 @@ package com.jspark.pw3_attendant.domain.Teacher;
 import com.jspark.pw3_attendant.domain.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -20,8 +18,8 @@ import org.hibernate.annotations.Where;
 @Getter
 @NoArgsConstructor
 @Table(name = "teacher")
-@SQLDelete(sql = "UPDATE teacher SET deleted = true, deleted_at = CURRENT_TIMESTAMP WHERE id = ?")
-@Where(clause = "deleted = false")
+@SQLDelete(sql = "UPDATE teacher SET deleted_at = CURRENT_TIMESTAMP WHERE id = ?")
+@Where(clause = "deleted_at IS NULL")
 public class Teacher extends BaseEntity {
 
     @Id
@@ -32,22 +30,19 @@ public class Teacher extends BaseEntity {
 
     private LocalDate birth;
 
+    private Sex sex;
+
     private String phone;
 
-    // TODO : 미사용 변수 추후 삭제
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private TeacherStatus status;  // 선생님의 상태 (ACTIVE, INACTIVE 등)
+    private TeacherType teacherType;
 
-    @Column(nullable = false)
-    private boolean deleted = false;
+    private String memo;
 
     @Column
     private LocalDateTime deletedAt;
 
-    public enum TeacherStatus {
-        ACTIVE,    // 재직 중
-        INACTIVE   // 퇴직
+    public void setName(String name) {
+        this.name = name;
     }
 
     public void setBirth(LocalDate birth) {
@@ -58,11 +53,18 @@ public class Teacher extends BaseEntity {
         this.phone = phone;
     }
 
-    public void setName(String name) {
-        this.name = name;
+    public void setSex(Sex sex) { this.sex = sex;}
+
+    public void setTeacherType(TeacherType teacherType) { this.teacherType = teacherType;}
+
+    public void setMemo(String memo){ this.memo = memo;}
+
+    public enum Sex {
+        MAN, WOMAN
     }
 
-    public void setStatus(TeacherStatus status) {
-        this.status = status;
+    public enum TeacherType {
+        PASTOR, TEACHER, HELPER,
     }
+    
 }

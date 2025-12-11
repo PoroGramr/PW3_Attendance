@@ -20,8 +20,8 @@ import java.time.LocalDateTime;
 @Setter
 @NoArgsConstructor
 @Table(name = "student")
-@SQLDelete(sql = "UPDATE student SET deleted = true, deleted_at = CURRENT_TIMESTAMP WHERE id = ?")
-@Where(clause = "deleted = false")
+@SQLDelete(sql = "UPDATE student SET deleted_at = CURRENT_TIMESTAMP WHERE id = ?")
+@Where(clause = "deleted_at IS NULL")
 public class Student extends BaseEntity {
 
     @Id
@@ -36,9 +36,6 @@ public class Student extends BaseEntity {
 
     @Column
     private String phone;
-
-    @Column(nullable = false)
-    private boolean deleted = false;
 
     @Column
     private LocalDateTime deletedAt;

@@ -29,9 +29,6 @@ public class TeacherController {
 
     private final TeacherService teacherService;
 
-    /**
-     * 선생님 등록
-     */
     @PostMapping
     @Operation(summary = "선생님 생성")
     public TeacherResponse createTeacher(@RequestBody TeacherRequest request) {
@@ -39,9 +36,6 @@ public class TeacherController {
         return TeacherResponse.from(savedTeacher);
     }
 
-    /**
-     * 선생님 단건 조회
-     */
     @GetMapping("/{id}")
     @Operation(summary = "선생님 단일 조회")
     public TeacherResponse getTeacher(@PathVariable Long id) {
@@ -49,9 +43,6 @@ public class TeacherController {
         return TeacherResponse.from(teacher);
     }
 
-    /**
-     * 모든 선생님 조회
-     */
     @GetMapping
     @Operation(summary = "선생님 전체 조회")
     public List<TeacherResponse> getAllTeacher() {
@@ -62,8 +53,9 @@ public class TeacherController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Teacher> updateTeacher(@PathVariable Long id, @RequestBody Teacher teacherDetails) {
-        Teacher updatedTeacher = teacherService.updateTeacher(id, teacherDetails);
+    @Operation(summary = "선생님 수정")
+    public ResponseEntity<Teacher> updateTeacher(@PathVariable Long id, @RequestBody TeacherRequest request) {
+        Teacher updatedTeacher = teacherService.updateTeacher(id, request);
         return ResponseEntity.ok(updatedTeacher);
     }
 

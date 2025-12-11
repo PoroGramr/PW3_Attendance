@@ -1,13 +1,10 @@
 package com.jspark.pw3_attendant.service.Teacher;
 
 
-import com.jspark.pw3_attendant.domain.Student.Student;
 import com.jspark.pw3_attendant.domain.Teacher.Teacher;
-import com.jspark.pw3_attendant.domain.Teacher.Teacher.TeacherStatus;
 import com.jspark.pw3_attendant.repository.Teacher.TeacherRepository;
 import com.jspark.pw3_attendant.service.Teacher.dto.TeacherRequest;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -35,17 +32,23 @@ public class TeacherService {
         teacher.setName(request.getName());
         teacher.setBirth(request.getBirth());
         teacher.setPhone(request.getPhone());
-        teacher.setStatus(TeacherStatus.ACTIVE);
+        teacher.setSex(request.getSex());
+        teacher.setTeacherType(request.getTeacherType());
+        teacher.setMemo(request.getMemo());
         return teacherRepository.save(teacher);
     }
 
-    public Teacher updateTeacher(Long id, Teacher studentDetails) {
+    @Transactional
+    public Teacher updateTeacher(Long id, TeacherRequest request) {
         Teacher teacher = teacherRepository.findById(id)
             .orElseThrow(() -> new RuntimeException("선생님을 찾을 수 없습니다."));
 
-        teacher.setName(studentDetails.getName());
-        teacher.setBirth(studentDetails.getBirth());
-        teacher.setPhone(studentDetails.getPhone());
+        teacher.setName(request.getName());
+        teacher.setBirth(request.getBirth());
+        teacher.setPhone(request.getPhone());
+        teacher.setSex(request.getSex());
+        teacher.setTeacherType(request.getTeacherType());
+        teacher.setMemo(request.getMemo());
 
         return teacherRepository.save(teacher);
     }
