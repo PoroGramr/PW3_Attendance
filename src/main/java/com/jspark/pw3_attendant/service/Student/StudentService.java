@@ -2,21 +2,22 @@ package com.jspark.pw3_attendant.service.Student;
 
 
 import com.jspark.pw3_attendant.domain.Student.Student;
+import com.jspark.pw3_attendant.domain.StudentClass.StudentClass;
 import com.jspark.pw3_attendant.repository.Student.StudentRepository;
 import com.jspark.pw3_attendant.repository.StudentClass.StudentClassRepository;
+import com.jspark.pw3_attendant.service.ClassRoom.dto.ClassRoomResponse;
 import com.jspark.pw3_attendant.service.Student.dto.MonthlyStudentRegistrationResponse;
 import com.jspark.pw3_attendant.service.Student.dto.StudentInfo;
 import com.jspark.pw3_attendant.service.Student.dto.StudentRequest;
 import com.jspark.pw3_attendant.service.Student.dto.StudentResponse;
 import java.time.LocalDate;
+import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.List;
-import java.util.Map;
-import java.util.stream.IntStream;
 
 @Service
 @RequiredArgsConstructor
@@ -32,18 +33,37 @@ public class StudentService {
         student.setName(request.getName());
         student.setBirth(request.getBirth());
         student.setPhone(request.getPhone());
+        student.setParentPhone(request.getParentPhone());
+        student.setSex(request.getSex());
+        student.setSchool(request.getSchool());
+        student.setMemo(request.getMemo());
         return studentRepository.save(student);
+
+
     }
 
-    public Student updateStudent(Long id, Student studentDetails) {
+    @Transactional
+    public StudentResponse updateStudent(Long id, StudentRequest request) {
         Student student = studentRepository.findById(id)
             .orElseThrow(() -> new RuntimeException("학생을 찾을 수 없습니다."));
 
-        student.setName(studentDetails.getName());
-        student.setBirth(studentDetails.getBirth());
-        student.setPhone(studentDetails.getPhone());
+        student.setName(request.getName());
+        student.setBirth(request.getBirth());
+        student.setPhone(request.getPhone());
+        student.setParentPhone(request.getParentPhone());
+        student.setSex(request.getSex());
+        student.setSchool(request.getSchool());
+        student.setMemo(request.getMemo());
 
-        return studentRepository.save(student);
+        Student updatedStudent = studentRepository.save(student);
+
+        Map<Integer, List<ClassRoomResponse>> classesByYear = studentClassRepository.findAllByStudent(updatedStudent).stream()
+            .collect(Collectors.groupingBy(
+                StudentClass::getSchoolYear,
+                Collectors.mapping(sc -> ClassRoomResponse.from(sc.getClassRoom()), Collectors.toList())
+            ));
+
+        return StudentResponse.from(updatedStudent, classesByYear);
     }
 
     @Transactional
@@ -51,20 +71,39 @@ public class StudentService {
         studentRepository.deleteById(id);
     }
 
-    public Student findById(Long id) {
-        return studentRepository.findById(id)
+    public StudentResponse findById(Long id) {
+        Student student = studentRepository.findById(id)
             .orElseThrow(() -> new IllegalArgumentException("학생을 찾을 수 없습니다."));
+
+        Map<Integer, List<ClassRoomResponse>> classesByYear = studentClassRepository.findAllByStudent(student).stream()
+            .collect(Collectors.groupingBy(
+                StudentClass::getSchoolYear,
+                Collectors.mapping(sc -> ClassRoomResponse.from(sc.getClassRoom()), Collectors.toList())
+            ));
+
+        return StudentResponse.from(student, classesByYear);
     }
 
 
 
-    public List<Student> findAll() {
-        return studentRepository.findAll();
+    public List<StudentResponse> findAll() {
+        return studentRepository.findAll().stream()
+            .map(student -> {
+                Map<Integer, List<ClassRoomResponse>> classesByYear = studentClassRepository.findAllByStudent(student).stream()
+                    .collect(Collectors.groupingBy(
+                        StudentClass::getSchoolYear,
+                        Collectors.mapping(sc -> ClassRoomResponse.from(sc.getClassRoom()), Collectors.toList())
+                    ));
+                return StudentResponse.from(student, classesByYear);
+            })
+            .collect(Collectors.toList());
     }
 
     public List<StudentResponse> getStudentsByYear(Integer year) {
         return studentClassRepository.findAllBySchoolYear(year).stream()
-            .map(StudentResponse::from)
+            .map(StudentClass::getStudent)
+            .distinct()
+            .map(student -> this.findById(student.getId()))
             .collect(Collectors.toList());
     }
 

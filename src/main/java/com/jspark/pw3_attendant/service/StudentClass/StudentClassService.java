@@ -11,21 +11,21 @@ import com.jspark.pw3_attendant.repository.Student.StudentRepository;
 import com.jspark.pw3_attendant.repository.StudentClass.StudentClassRepository;
 import com.jspark.pw3_attendant.repository.TeacherClass.TeacherClassRepository;
 import com.jspark.pw3_attendant.service.ClassRoom.dto.ClassRoomTeacherResponse;
+import com.jspark.pw3_attendant.service.Student.StudentService;
 import com.jspark.pw3_attendant.service.Student.dto.StudentResponse;
 import com.jspark.pw3_attendant.service.StudentClass.dto.ClassRoomIdStudentsResponse;
 import com.jspark.pw3_attendant.service.StudentClass.dto.StudentClassRequest;
 import com.jspark.pw3_attendant.service.StudentClass.dto.StudentClassSummaryResponse;
 import com.jspark.pw3_attendant.service.StudentClass.dto.StudentSummaryResponse;
-import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -36,6 +36,7 @@ public class StudentClassService {
     private final StudentRepository studentRepository;
     private final ClassRoomRepository classRoomRepository;
     private final TeacherClassRepository teacherClassRepository;
+    private final StudentService studentService;
 
     @Transactional
     public StudentClass save(StudentClassRequest request) {
@@ -100,9 +101,10 @@ public class StudentClassService {
     }
 
     public List<StudentResponse> findStudentsByClassAndYear(Long classRoomId, Integer schoolYear) {
+        // TODO: This method causes N+1 queries. Consider optimizing if performance becomes an issue.
         return studentClassRepository.findAllByClassRoom_IdAndSchoolYear(classRoomId, schoolYear)
             .stream()
-            .map(StudentResponse::from)
+            .map(sc -> studentService.findById(sc.getStudent().getId()))
             .collect(Collectors.toList());
     }
 
@@ -131,40 +133,10 @@ public class StudentClassService {
 
 
     public List<StudentResponse> findStudentsWithClassInfo(Integer schoolYear) {
-        // 1) schoolYear에 해당하는 StudentClass 목록을 가져옵니다.
-        List<StudentClass> studentClasses = studentClassRepository.findAllBySchoolYear(schoolYear);
-
-        // 2) 학생 중 StudentClass가 없거나 학년 정보가 없는 학생들을 처리하기 위해
-        List<Student> studentsWithoutClass = studentRepository.findAllByStudentClassesIsEmpty();
-
-        // 3) 학생 정보와 반 정보를 포함하여 변환
-        List<StudentResponse> studentResponses = studentClasses.stream()
-            .map(studentClass -> {
-                Student student = studentClass.getStudent();
-                return new StudentResponse(
-                    student.getId(),
-                    student.getName(),
-                    student.getBirth(),
-                    student.getPhone(),
-                    studentClass.getSchoolYear(),  // schoolYear가 있을 때만 설정
-                    studentClass.getClassRoom().getId()
-                );
-            })
+        // TODO: This method causes N+1 queries. Consider optimizing if performance becomes an issue.
+        return studentClassRepository.findAllBySchoolYear(schoolYear).stream()
+            .map(studentClass -> studentService.findById(studentClass.getStudent().getId()))
             .collect(Collectors.toList());
-
-        // 4) 학년 정보가 없는 학생들도 포함
-        studentResponses.addAll(studentsWithoutClass.stream()
-            .map(student -> new StudentResponse(
-                student.getId(),
-                student.getName(),
-                student.getBirth(),
-                student.getPhone(),
-                null,  // schoolYear가 없는 학생은 null로 처리
-                null   // 반 정보도 없으므로 null
-            ))
-            .collect(Collectors.toList()));
-
-        return studentResponses;
     }
 
 

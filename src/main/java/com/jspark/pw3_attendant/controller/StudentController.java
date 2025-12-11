@@ -8,6 +8,7 @@ import com.jspark.pw3_attendant.service.StudentClass.StudentClassService;
 
 import com.jspark.pw3_attendant.service.Student.dto.MonthlyStudentRegistrationResponse;
 import io.swagger.v3.oas.annotations.Operation;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -22,19 +23,17 @@ public class StudentController {
 
     private final StudentService studentService;
     private final StudentClassService studentClassService;
-    /**
-     * 학생 등록
-     */
+
     @PostMapping
     @Operation(summary = "학생 생성")
     public StudentResponse createStudent(@RequestBody StudentRequest request) {
         Student savedStudent = studentService.save(request);
-        return StudentResponse.from(savedStudent);
+        return StudentResponse.from(savedStudent, Map.of());
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Student> updateStudent(@PathVariable Long id, @RequestBody Student studentDetails) {
-        Student updatedStudent = studentService.updateStudent(id, studentDetails);
+    public ResponseEntity<StudentResponse> updateStudent(@PathVariable Long id, @RequestBody StudentRequest request) {
+        StudentResponse updatedStudent = studentService.updateStudent(id, request);
         return ResponseEntity.ok(updatedStudent);
     }
 
@@ -44,15 +43,11 @@ public class StudentController {
         return ResponseEntity.ok("학생이 삭제되었습니다.");
     }
 
-    /**
-     * 학생 단건 조회
-     */
     @GetMapping("/{id}")
     @Operation(summary = "학생 단일 조회")
     public StudentResponse getStudent(@PathVariable Long id) {
         try {
-            Student student = studentService.findById(id);
-            return StudentResponse.from(student);
+            return studentService.findById(id);
         } catch (IllegalArgumentException e) {
             throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "학생을 찾을 수 없습니다.");
         }
@@ -64,10 +59,7 @@ public class StudentController {
     @GetMapping
     @Operation(summary = "학생 전체 조회")
     public List<StudentResponse> getAllStudents() {
-        return studentService.findAll()
-            .stream()
-            .map(StudentResponse::from)
-            .collect(Collectors.toList());
+        return studentService.findAll();
     }
 
     @GetMapping("/studentsWithClassInfo")
