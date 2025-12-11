@@ -22,6 +22,7 @@
 <div class="container">
     <h1>출석용 QR 코드</h1>
     <div id="student-name">로딩 중...</div>
+    <div id="student-class-info"></div>
     <div id="qr-code"></div>
     <button id="download-btn" style="display: none;">QR 코드 저장</button>
     <div id="error-message" class="error"></div>
@@ -35,6 +36,7 @@
         const qrSecret = parts[2];
 
         const studentNameEl = document.getElementById('student-name');
+        const studentClassInfoEl = document.getElementById('student-class-info');
         const qrCodeEl = document.getElementById('qr-code');
         const downloadBtn = document.getElementById('download-btn');
         const errorEl = document.getElementById('error-message');
@@ -54,6 +56,13 @@
             })
             .then(data => {
                 studentNameEl.textContent = `${data.student.name} 학생`;
+
+                if (data.currentClass) {
+                    studentClassInfoEl.textContent = `${data.currentClass.schoolType} ${data.currentClass.grade}학년 ${data.currentClass.classNumber}반`;
+                } else {
+                    studentClassInfoEl.textContent = '현재 학년/반 정보 없음';
+                }
+
                 const qrPayload = data.qrPayload;
 
                 // Generate QR Code
@@ -73,6 +82,7 @@
             })
             .catch(error => {
                 studentNameEl.style.display = 'none';
+                studentClassInfoEl.style.display = 'none';
                 errorEl.textContent = error.message;
             });
     });

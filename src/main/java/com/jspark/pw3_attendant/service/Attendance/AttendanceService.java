@@ -17,6 +17,7 @@ import com.jspark.pw3_attendant.service.Attendance.dto.StudentAttendanceStatusDt
 import com.jspark.pw3_attendant.service.Attendance.dto.ClassSundayAttendanceResponse;
 import com.jspark.pw3_attendant.service.Attendance.dto.StudentAttendanceResponse;
 import com.jspark.pw3_attendant.service.Attendance.dto.SundayAttendanceSummaryResponse;
+import com.jspark.pw3_attendant.service.attendance.dto.ScanResponseDto;
 import java.util.ArrayList;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -42,12 +43,12 @@ public class AttendanceService {
 
 
     @Transactional
-    public com.jspark.pw3_attendant.service.attendance.dto.ScanResponseDto processScan(
+    public ScanResponseDto processScan(
         com.jspark.pw3_attendant.service.attendance.dto.ScanRequestDto request) {
         // 1. Parse qrPayload
         String[] parts = request.getQrPayload().split(":");
         if (parts.length != 3 || !"ATT-STU".equals(parts[0])) {
-            return new com.jspark.pw3_attendant.service.attendance.dto.ScanResponseDto("INVALID_QR");
+            return new ScanResponseDto("INVALID_QR");
         }
 
         Long studentId;
@@ -56,7 +57,7 @@ public class AttendanceService {
             studentId = Long.parseLong(parts[1]);
             qrSecret = parts[2];
         } catch (NumberFormatException e) {
-            return new com.jspark.pw3_attendant.service.attendance.dto.ScanResponseDto("INVALID_QR_PAYLOAD");
+            return new ScanResponseDto("INVALID_QR_PAYLOAD");
         }
 
         // 2. Validate QR Secret
@@ -64,25 +65,21 @@ public class AttendanceService {
             .orElseThrow(() -> new IllegalArgumentException("학생 QR 정보를 찾을 수 없습니다."));
 
         if (!studentQr.getQrSecret().equals(qrSecret)) {
-            return new com.jspark.pw3_attendant.service.attendance.dto.ScanResponseDto("INVALID_QR_SECRET");
+            return new ScanResponseDto("INVALID_QR_SECRET");
         }
 
-        // 3. Verify student enrollment
-        // TODO: The logic to determine the school year should be refined.
-        int schoolYear = java.time.LocalDate.now().getYear();
+        // 3. Find a valid StudentClass for the student for the current year
+        int schoolYear = java.time.LocalDate.now().getYear(); // TODO: Refine school year logic
         StudentClass studentClass = studentClassRepository.findByStudentIdAndSchoolYear(studentId, schoolYear)
-            .orElseThrow(() -> new IllegalArgumentException("해당 학생의 수강 정보를 찾을 수 없습니다."));
-
-        if (!studentClass.getClassRoom().getId().equals(request.getCourseId())) {
-             return new com.jspark.pw3_attendant.service.attendance.dto.ScanResponseDto("NOT_ENROLLED");
-        }
+            .orElseThrow(() -> new IllegalArgumentException("해당 학생은 금년에 등록된 반이 없습니다."));
 
         // 4. Record attendance
         // TODO: Add logic for attendance time validation (e.g., only within class hours).
         boolean created = upsertAttendance(studentClass.getId(), LocalDate.now(), AttendanceStatus.ATTEND);
-        Attendance attendance = attendanceRepository.findByStudentClassIdAndDate(studentClass.getId(), LocalDate.now()).get();
+        Attendance attendance = attendanceRepository.findByStudentClassIdAndDate(studentClass.getId(), LocalDate.now())
+            .orElseThrow(() -> new IllegalStateException("출석 기록 생성에 실패했습니다."));
 
-        return new com.jspark.pw3_attendant.service.attendance.dto.ScanResponseDto(created ? "SUCCESS" : "DUPLICATE", studentQr.getStudent(), attendance);
+        return new ScanResponseDto(created ? "SUCCESS" : "DUPLICATE", studentQr.getStudent(), attendance);
     }
 
     @Transactional

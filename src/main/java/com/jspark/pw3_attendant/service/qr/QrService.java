@@ -41,7 +41,17 @@ public class QrService {
         Student student = studentQr.getStudent();
         String qrPayload = generateQrPayload(student, studentQr);
 
-        return new QrResolveResponseDto(student, qrPayload);
+        // Determine current school year (assuming March is the start of a new school year)
+        int currentYear = java.time.LocalDate.now().getYear();
+        int schoolYear = java.time.LocalDate.now().getMonthValue() >= 3 ? currentYear : currentYear - 1;
+
+        // Find the student's current class
+        QrResolveResponseDto.StudentCurrentClassInfo currentClassInfo = studentClassRepository
+            .findByStudentIdAndSchoolYear(student.getId(), schoolYear)
+            .map(sc -> new QrResolveResponseDto.StudentCurrentClassInfo(sc.getClassRoom()))
+            .orElse(null); // Or throw an exception if a student must have a current class
+
+        return new QrResolveResponseDto(student, currentClassInfo, qrPayload);
     }
 
     @Transactional

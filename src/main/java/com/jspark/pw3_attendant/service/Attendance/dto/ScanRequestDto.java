@@ -6,6 +6,5 @@ import lombok.NoArgsConstructor;
 @Getter
 @NoArgsConstructor
 public class ScanRequestDto {
-    private Long courseId; // Corresponds to classRoomId
     private String qrPayload;
 }
