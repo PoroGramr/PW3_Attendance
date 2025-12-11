@@ -75,7 +75,7 @@ public class AttendanceService {
 
         // 4. Record attendance
         // TODO: Add logic for attendance time validation (e.g., only within class hours).
-        boolean created = upsertAttendance(studentClass.getId(), LocalDate.now(), AttendanceStatus.ATTEND);
+        boolean created = upsertAttendance(studentClass.getId(), LocalDate.now(), request.getStatus());
         Attendance attendance = attendanceRepository.findByStudentClassIdAndDate(studentClass.getId(), LocalDate.now())
             .orElseThrow(() -> new IllegalStateException("출석 기록 생성에 실패했습니다."));
 

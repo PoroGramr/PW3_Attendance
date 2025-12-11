@@ -21,6 +21,10 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.jspark.pw3_attendant.repository.ClassRoom.ClassRoomRepository;
+import com.jspark.pw3_attendant.domain.ClassRoom.ClassRoom;
+import com.jspark.pw3_attendant.domain.ClassRoom.ClassRoom.SchoolType;
+
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -30,6 +34,7 @@ public class QrService {
     private final StudentClassRepository studentClassRepository;
     private final MessageService messageService;
     private final MessageLogRepository messageLogRepository;
+    private final ClassRoomRepository classRoomRepository;
 
     @Value("${app.qr-url-base}")
     private String qrUrlBase;
@@ -135,6 +140,13 @@ public class QrService {
                 return new StudentQrResponseDto(student, studentQr, qrUrlBase);
             })
             .collect(Collectors.toList());
+    }
+
+    @Transactional
+    public List<StudentQrResponseDto> getStudentQrsForClass(Integer schoolYear, SchoolType schoolType, Integer grade, Integer classNumber) {
+        ClassRoom classRoom = classRoomRepository.findBySchoolTypeAndGradeAndClassNumber(schoolType, grade, classNumber)
+            .orElseThrow(() -> new IllegalArgumentException("해당하는 반을 찾을 수 없습니다."));
+        return getStudentQrsForClass(classRoom.getId(), schoolYear);
     }
 
     /**
