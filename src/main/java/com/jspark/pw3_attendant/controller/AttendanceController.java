@@ -20,6 +20,10 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.stream.Collectors;
 
+
+import com.jspark.pw3_attendant.service.attendance.dto.ScanRequestDto;
+import com.jspark.pw3_attendant.service.attendance.dto.ScanResponseDto;
+
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/attendances")
@@ -117,5 +121,17 @@ public class AttendanceController {
     ) {
         List<ClassAttendanceResponse> list = attendanceService.getAttendanceByClassForDateAndYear(schoolYear, date);
         return ResponseEntity.ok(list);
+    }
+
+    @PostMapping("/scan")
+    @Operation(summary = "QR 코드 스캔으로 출석 처리 (교사용)")
+    // TODO: Add security check to ensure only ADMIN/TEACHER can access this.
+    public ResponseEntity<ScanResponseDto> scanAttendance(@RequestBody ScanRequestDto request) {
+        try {
+            ScanResponseDto response = attendanceService.processScan(request);
+            return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(new ScanResponseDto(e.getMessage()));
+        }
     }
 }

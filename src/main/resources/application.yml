@@ -18,3 +18,6 @@ spring:
   mvc:
     pathmatch:
       matching-strategy: ant_path_matcher
+
+app:
+  qr-url-base: "http://localhost:8080"
