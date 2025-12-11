@@ -5,9 +5,10 @@ import com.jspark.pw3_attendant.domain.StudentClass.StudentClass;
 import com.jspark.pw3_attendant.domain.message_log.MessageLog;
 import com.jspark.pw3_attendant.domain.student_qr.StudentQr;
 import com.jspark.pw3_attendant.repository.StudentClass.StudentClassRepository;
-import com.jspark.pw3_attendant.repository.message_log.MessageLogRepository;
-import com.jspark.pw3_attendant.repository.student_qr.StudentQrRepository;
-import com.jspark.pw3_attendant.service.message.MessageService;
+import com.jspark.pw3_attendant.repository.student_qr.StudentQrRepository; // New import
+import com.jspark.pw3_attendant.service.message.MessageDispatchService; // New import
+import com.jspark.pw3_attendant.service.message.dto.MessageRequestDto; // New import
+import com.jspark.pw3_attendant.service.message.dto.MessageSendResponseDto;
 import com.jspark.pw3_attendant.service.qr.dto.QrResolveResponseDto;
 import com.jspark.pw3_attendant.service.qr.dto.SendQrRequestDto;
 import com.jspark.pw3_attendant.service.qr.dto.SendQrResponseDto;
@@ -32,8 +33,7 @@ public class QrService {
 
     private final StudentQrRepository studentQrRepository;
     private final StudentClassRepository studentClassRepository;
-    private final MessageService messageService;
-    private final MessageLogRepository messageLogRepository;
+    private final MessageDispatchService messageDispatchService; // Changed
     private final ClassRoomRepository classRoomRepository;
 
     @Value("${app.qr-url-base}")
@@ -67,11 +67,13 @@ public class QrService {
         int schoolYear = java.time.LocalDate.now().getYear();
         List<StudentClass> studentClasses = studentClassRepository.findAllByClassRoomIdAndSchoolYear(request.getCourseId(), schoolYear);
 
-        int successCount = 0;
-        int failedCount = 0;
+        int totalSent = 0;
+        int totalSuccess = 0;
+        int totalFailed = 0;
 
         for (StudentClass sc : studentClasses) {
             Student student = sc.getStudent();
+            totalSent++;
             try {
                 StudentQr studentQr = studentQrRepository.findByStudentId(student.getId())
                     .orElseGet(() -> {
@@ -82,22 +84,40 @@ public class QrService {
                 String qrUrl = String.format("%s/s/%s", qrUrlBase, studentQr.getQrSecret());
                 String messageContent = createMessageContent(student, qrUrl);
 
-                // For now, we only support one channel.
-                // The logic can be extended to handle multiple channels from the request.
-                MessageLog.MessageChannel channel = request.getChannels().get(0);
+                // Construct MessageRequestDto for this single student
+                MessageRequestDto messageRequest = new MessageRequestDto();
 
-                if (request.isTestMode() || messageService.sendMessage(student, messageContent)) {
-                    messageLogRepository.save(new MessageLog(student, channel, MessageLog.MessageStatus.SUCCESS, messageContent, null));
-                    successCount++;
-                } else {
-                    throw new RuntimeException("메시지 발송 실패");
+                MessageRequestDto.TargetDto targetDto = new MessageRequestDto.TargetDto();
+                targetDto.setType(MessageRequestDto.TargetType.SPECIFIC_STUDENTS);
+                targetDto.setIds(List.of(student.getId())); // Target only this student
+                messageRequest.setTarget(targetDto);
+
+                // Use the first channel from the request. This can be extended to iterate over channels.
+                if (request.getChannels() == null || request.getChannels().isEmpty()) {
+                    throw new IllegalArgumentException("발송 채널이 지정되지 않았습니다.");
                 }
+                messageRequest.setChannel(request.getChannels().get(0));
+
+                // RecipientType can be passed from SendQrRequestDto if needed, default to STUDENTS
+                messageRequest.setRecipientType(MessageRequestDto.RecipientType.STUDENTS);
+
+                MessageRequestDto.ContentDto contentDto = new MessageRequestDto.ContentDto();
+                contentDto.setType(MessageRequestDto.ContentType.TEXT); // QR URL is text-based
+                contentDto.setText(messageContent);
+                contentDto.setImageUrl(null); // No image for QR link sending
+                messageRequest.setContent(contentDto);
+
+                MessageSendResponseDto dispatchResult = messageDispatchService.dispatchMessage(messageRequest);
+
+                totalSuccess += dispatchResult.getSuccess();
+                totalFailed += dispatchResult.getFailed();
+
             } catch (Exception e) {
-                messageLogRepository.save(new MessageLog(student, request.getChannels().get(0), MessageLog.MessageStatus.FAIL, null, e.getMessage()));
-                failedCount++;
+                totalFailed++;
+                // Log the exception if necessary, MessageDispatchService already logs send failures.
             }
         }
-        return new SendQrResponseDto(studentClasses.size(), successCount, failedCount);
+        return new SendQrResponseDto(totalSent, totalSuccess, totalFailed);
     }
 
     private String createMessageContent(Student student, String qrUrl) {

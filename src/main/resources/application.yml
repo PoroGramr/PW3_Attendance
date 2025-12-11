@@ -21,3 +21,10 @@ spring:
 
 app:
   qr-url-base: "http://localhost:8080"
+
+coolsms:
+  api:
+    key: ${COOLSMS_API_KEY}
+    secret: ${COOLSMS_SECRET_KEY}
+    number: ${COOLSMS_SENDER_NUMBER}
+
