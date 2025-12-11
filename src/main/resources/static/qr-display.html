@@ -16,10 +16,12 @@
     </style>
     <!-- QR Code Generation Library -->
     <script src="https://cdn.jsdelivr.net/npm/qrcode@1.4.4/build/qrcode.min.js"></script>
+    <!-- HTML to Canvas Library -->
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 </head>
 <body>
 
-<div class="container">
+<div class="container" id="qr-container">
     <h1>출석용 QR 코드</h1>
     <div id="student-name">로딩 중...</div>
     <div id="student-class-info"></div>
@@ -35,6 +37,7 @@
         // Expecting URL structure like /s/{qrSecret}
         const qrSecret = parts[2];
 
+        const containerEl = document.getElementById('qr-container');
         const studentNameEl = document.getElementById('student-name');
         const studentClassInfoEl = document.getElementById('student-class-info');
         const qrCodeEl = document.getElementById('qr-code');
@@ -58,7 +61,8 @@
                 studentNameEl.textContent = `${data.student.name} 학생`;
 
                 if (data.currentClass) {
-                    studentClassInfoEl.textContent = `${data.currentClass.schoolType} ${data.currentClass.grade}학년 ${data.currentClass.classNumber}반`;
+                    const schoolTypeKr = data.currentClass.schoolType === 'MIDDLE' ? '중학교' : '고등학교';
+                    studentClassInfoEl.textContent = `${schoolTypeKr} ${data.currentClass.grade}학년 ${data.currentClass.classNumber}반`;
                 } else {
                     studentClassInfoEl.textContent = '현재 학년/반 정보 없음';
                 }
@@ -73,10 +77,12 @@
 
                     // Setup download button
                     downloadBtn.addEventListener('click', () => {
-                        const link = document.createElement('a');
-                        link.download = `${data.student.name}_QR_Code.png`;
-                        link.href = canvas.toDataURL('image/png');
-                        link.click();
+                        html2canvas(containerEl).then(canvas => {
+                            const link = document.createElement('a');
+                            link.download = `${data.student.name}_출석_QR.png`;
+                            link.href = canvas.toDataURL('image/png');
+                            link.click();
+                        });
                     });
                 });
             })
