@@ -43,6 +43,7 @@ public class Attendance extends BaseEntity {
         ATTEND,
         LATE,
         ABSENT,
-        OTHER
+        OTHER,
+        UNCHECKED
     }
 }

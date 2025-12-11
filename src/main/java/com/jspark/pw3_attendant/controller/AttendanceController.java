@@ -4,6 +4,7 @@ import com.jspark.pw3_attendant.domain.Attendance.Attendance.AttendanceStatus;
 import com.jspark.pw3_attendant.service.Attendance.AttendanceService;
 
 import com.jspark.pw3_attendant.service.Attendance.dto.AttendanceResponse;
+import com.jspark.pw3_attendant.service.Attendance.dto.ClassAttendanceResponse; // New import
 import com.jspark.pw3_attendant.service.Attendance.dto.StudentAttendanceResponse;
 import com.jspark.pw3_attendant.service.Attendance.dto.ClassSundayAttendanceResponse;
 import com.jspark.pw3_attendant.service.Attendance.dto.SundayAttendanceSummaryResponse;
@@ -92,8 +93,6 @@ public class AttendanceController {
         @PathVariable Long classRoomId,
         @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
     ) {
-        // date 기준 학년도를 내부에서 계산하거나, StudentClassService 레벨에서
-        // 만약 학년도가 필요하면 service 메서드 시그니처를 바꿔주세요.
         List<StudentAttendanceResponse> list =
             attendanceService.findStudentAttendancesByClassAndDate(classRoomId, date);
 
@@ -107,6 +106,16 @@ public class AttendanceController {
     ) {
         List<ClassSundayAttendanceResponse> list =
             attendanceService.getSundayAttendanceSummaryForClass(classRoomId);
+        return ResponseEntity.ok(list);
+    }
+
+    @GetMapping("/classes/year/{schoolYear}/date/{date}")
+    @Operation(summary = "특정 학년도, 특정일 반별 학생 출석 조회")
+    public ResponseEntity<List<ClassAttendanceResponse>> getAttendanceByClassForDateAndYear(
+        @PathVariable Integer schoolYear,
+        @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
+    ) {
+        List<ClassAttendanceResponse> list = attendanceService.getAttendanceByClassForDateAndYear(schoolYear, date);
         return ResponseEntity.ok(list);
     }
 }

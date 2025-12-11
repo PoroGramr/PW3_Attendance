@@ -3,11 +3,15 @@ package com.jspark.pw3_attendant.service.Attendance;
 
 import com.jspark.pw3_attendant.domain.Attendance.Attendance;
 import com.jspark.pw3_attendant.domain.Attendance.Attendance.AttendanceStatus;
+import com.jspark.pw3_attendant.domain.ClassRoom.ClassRoom;
 import com.jspark.pw3_attendant.domain.StudentClass.StudentClass;
 
 import com.jspark.pw3_attendant.repository.Attendance.AttendanceRepository;
 import com.jspark.pw3_attendant.repository.Student.StudentRepository;
 import com.jspark.pw3_attendant.repository.StudentClass.StudentClassRepository;
+import com.jspark.pw3_attendant.repository.TeacherClass.TeacherClassRepository; // Inject this
+import com.jspark.pw3_attendant.service.Attendance.dto.ClassAttendanceResponse; // New DTO
+import com.jspark.pw3_attendant.service.Attendance.dto.StudentAttendanceStatusDto; // New DTO
 import com.jspark.pw3_attendant.service.Attendance.dto.ClassSundayAttendanceResponse;
 import com.jspark.pw3_attendant.service.Attendance.dto.StudentAttendanceResponse;
 import com.jspark.pw3_attendant.service.Attendance.dto.SundayAttendanceSummaryResponse;
@@ -20,6 +24,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
+import java.util.Comparator;
 
 @Service
 @RequiredArgsConstructor
@@ -29,6 +35,7 @@ public class AttendanceService {
     private final AttendanceRepository attendanceRepository;
     private final StudentClassRepository studentClassRepository;
     private final StudentRepository studentRepository;
+    private final TeacherClassRepository teacherClassRepository; // Injected
 
     @Transactional
     public boolean upsertAttendance(Long studentClassId, LocalDate date, AttendanceStatus status) {
@@ -164,6 +171,57 @@ public class AttendanceService {
 
                 return new ClassSundayAttendanceResponse(sunday, attendedCount, totalCount);
             })
+            .collect(Collectors.toList());
+    }
+
+    public List<ClassAttendanceResponse> getAttendanceByClassForDateAndYear(Integer schoolYear, LocalDate date) {
+        // 1. 해당 schoolYear의 모든 StudentClass 매핑을 가져옵니다.
+        List<StudentClass> studentClasses = studentClassRepository.findAllBySchoolYear(schoolYear);
+
+        // 2. ClassRoom별로 학생들의 출석 정보를 그룹화합니다.
+        Map<ClassRoom, List<StudentClass>> studentClassesByRoom = studentClasses.stream()
+            .collect(Collectors.groupingBy(StudentClass::getClassRoom));
+
+        // 3. 각 ClassRoom에 대해 ClassAttendanceResponse를 생성합니다.
+        return studentClassesByRoom.entrySet().stream()
+            .map(entry -> {
+                ClassRoom classRoom = entry.getKey();
+                List<StudentClass> studentsInClass = entry.getValue();
+
+                // 4. 해당 ClassRoom의 선생님 이름을 찾습니다.
+                String teacherName = teacherClassRepository.findByClassRoomIdAndSchoolYear(classRoom.getId(), schoolYear)
+                    .map(teacherClass -> teacherClass.getTeacher().getName())
+                    .orElse("담당 선생님 없음"); // 담당 선생님이 없을 경우 기본값
+
+                // 5. 학생별 출석 상태를 가져옵니다.
+                List<StudentAttendanceStatusDto> studentAttendanceStatuses = studentsInClass.stream()
+                    .map(sc -> {
+                        Optional<Attendance> attendanceOpt = attendanceRepository.findByStudentClassIdAndDate(sc.getId(), date);
+                        AttendanceStatus status = attendanceOpt
+                            .map(Attendance::getStatus)
+                            .orElse(AttendanceStatus.UNCHECKED); // 출석 기록이 없으면 UNCHECKED
+
+                        return new StudentAttendanceStatusDto(
+                            sc.getId(),
+                            sc.getStudent().getName(),
+                            status
+                        );
+                    })
+                    // 학생 이름순으로 정렬
+                    .sorted(Comparator.comparing(StudentAttendanceStatusDto::getStudentName))
+                    .collect(Collectors.toList());
+
+                // 6. ClassAttendanceResponse 객체를 생성합니다.
+                return new ClassAttendanceResponse(
+                    classRoom.getId(),
+                    classRoom.getName(),
+                    teacherName,
+                    studentAttendanceStatuses
+                );
+            })
+            // 반 이름 또는 학년-반 번호 순으로 정렬
+            .sorted(Comparator
+                .comparing(ClassAttendanceResponse::getClassName)) // Assuming classRoom.getName() provides a sortable order
             .collect(Collectors.toList());
     }
 }
