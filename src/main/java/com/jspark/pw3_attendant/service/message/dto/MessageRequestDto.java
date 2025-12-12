@@ -6,6 +6,7 @@ import lombok.NoArgsConstructor;
 
 import java.util.List;
 import lombok.Setter;
+import org.springframework.web.multipart.MultipartFile;
 
 @Getter
 @Setter
@@ -32,6 +33,7 @@ public class MessageRequestDto {
         private ContentType type;
         private String text;
         private String imageUrl; // Optional
+        private transient MultipartFile imageFile;
     }
 
     public enum TargetType {

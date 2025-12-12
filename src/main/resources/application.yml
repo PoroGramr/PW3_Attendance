@@ -28,3 +28,8 @@ coolsms:
     secret: ${COOLSMS_SECRET_KEY}
     number: ${COOLSMS_SENDER_NUMBER}
 
+external:
+  imgbb:
+    api:
+      key: ${IMGBB_API_KEY}
+

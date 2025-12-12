@@ -8,13 +8,17 @@ import com.jspark.pw3_attendant.service.message.dto.MessageRequestDto.ContentTyp
 import com.jspark.pw3_attendant.service.message.dto.MessageSendResponseDto;
 import com.jspark.pw3_attendant.service.message.generator.MessageContentGenerator;
 import com.jspark.pw3_attendant.service.message.resolver.TargetResolver;
+import com.jspark.pw3_attendant.service.thirdparty.ImgbbService;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 public class MessageDispatchService {
 
@@ -23,12 +27,15 @@ public class MessageDispatchService {
     private final MessageService messageService; // Assuming one channel for now (e.g., LoggingMessageService)
     private final MessageLogRepository messageLogRepository;
     private final CoolMessageService coolMessageService;
+    private final ImgbbService imgbbService;
 
     public MessageDispatchService(
         List<TargetResolver> targetResolvers,
         List<MessageContentGenerator> contentGenerators,
         MessageService messageService,
-        MessageLogRepository messageLogRepository, CoolMessageService coolMessageService
+        MessageLogRepository messageLogRepository,
+        CoolMessageService coolMessageService,
+        ImgbbService imgbbService
     ) {
         this.targetResolvers = targetResolvers.stream()
             .collect(Collectors.toMap(TargetResolver::getTargetType, Function.identity()));
@@ -37,9 +44,21 @@ public class MessageDispatchService {
         this.messageService = messageService;
         this.messageLogRepository = messageLogRepository;
         this.coolMessageService = coolMessageService;
+        this.imgbbService = imgbbService;
     }
 
     public MessageSendResponseDto dispatchMessage(MessageRequestDto request) {
+        // Upload image if present
+        MultipartFile imageFile = request.getContent().getImageFile();
+        System.out.println("111");
+        if (imageFile != null && !imageFile.isEmpty()) {
+            String imageUrl = imgbbService.uploadImage(imageFile);
+            imageUrl = imageUrl.substring(0, imageUrl.length() - 4) + ".jpg";
+            request.getContent().setImageUrl(imageUrl);
+            // Ensure content type is TEXT_WITH_IMAGE if an image is provided
+            request.getContent().setType(ContentType.TEXT_WITH_IMAGE);
+        }
+
         // 1. Resolve targets
         TargetResolver resolver = targetResolvers.get(request.getTarget().getType());
         if (resolver == null) {
@@ -64,7 +83,9 @@ public class MessageDispatchService {
                 if (request.getContent().getType() == ContentType.TEXT){
                     coolMessageService.sendSms(student.getPhone(), messageContent);
                 } else if (request.getContent().getType() == ContentType.TEXT_WITH_IMAGE){
-                    coolMessageService.sendSmsWithImg(student.getPhone(), messageContent, request.getContent().getImageUrl());}
+                    log.info(request.getContent().getImageUrl());
+                    coolMessageService.sendSmsWithImg(student.getPhone(), messageContent, request.getContent().getImageUrl());
+                }
 
                 // 4. Send message (dummy implementation)
                 boolean sent = messageService.sendMessage(student, messageContent,null);

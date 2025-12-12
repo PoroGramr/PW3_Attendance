@@ -13,11 +13,12 @@ import com.jspark.pw3_attendant.repository.StudentClass.StudentClassRepository;
 import com.jspark.pw3_attendant.repository.TeacherClass.TeacherClassRepository;
 import com.jspark.pw3_attendant.repository.student_qr.StudentQrRepository;
 import com.jspark.pw3_attendant.service.Attendance.dto.ClassAttendanceResponse;
+import com.jspark.pw3_attendant.service.Attendance.dto.ScanResponseDto;
 import com.jspark.pw3_attendant.service.Attendance.dto.StudentAttendanceStatusDto;
 import com.jspark.pw3_attendant.service.Attendance.dto.ClassSundayAttendanceResponse;
 import com.jspark.pw3_attendant.service.Attendance.dto.StudentAttendanceResponse;
 import com.jspark.pw3_attendant.service.Attendance.dto.SundayAttendanceSummaryResponse;
-import com.jspark.pw3_attendant.service.attendance.dto.ScanResponseDto;
+
 import java.util.ArrayList;
 import java.util.Optional;
 import java.util.stream.Collectors;

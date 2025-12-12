@@ -5,6 +5,7 @@ import com.jspark.pw3_attendant.service.Attendance.AttendanceService;
 
 import com.jspark.pw3_attendant.service.Attendance.dto.AttendanceResponse;
 import com.jspark.pw3_attendant.service.Attendance.dto.ClassAttendanceResponse; // New import
+import com.jspark.pw3_attendant.service.Attendance.dto.ScanResponseDto;
 import com.jspark.pw3_attendant.service.Attendance.dto.StudentAttendanceResponse;
 import com.jspark.pw3_attendant.service.Attendance.dto.ClassSundayAttendanceResponse;
 import com.jspark.pw3_attendant.service.Attendance.dto.SundayAttendanceSummaryResponse;
@@ -22,7 +23,7 @@ import java.util.stream.Collectors;
 
 
 import com.jspark.pw3_attendant.service.attendance.dto.ScanRequestDto;
-import com.jspark.pw3_attendant.service.attendance.dto.ScanResponseDto;
+
 
 @RestController
 @RequiredArgsConstructor

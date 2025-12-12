@@ -1,0 +1,4 @@
+external:
+  imgbb:
+    api:
+      key: test-dummy-imgbb-key
