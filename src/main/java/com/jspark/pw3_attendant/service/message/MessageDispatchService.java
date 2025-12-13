@@ -76,9 +76,10 @@ public class MessageDispatchService {
         int failedCount = 0;
 
         for (Student student : targets) {
+            String messageContent = "";
             try {
                 // 3. Generate message content for each student
-                String messageContent = generator.generate(student, request.getContent());
+                messageContent = generator.generate(student, request.getContent());
 
                 if (request.getContent().getType() == ContentType.TEXT){
                     coolMessageService.sendSms(student.getPhone(), messageContent);
@@ -87,16 +88,13 @@ public class MessageDispatchService {
                     coolMessageService.sendSmsWithImg(student.getPhone(), messageContent, request.getContent().getImageUrl());
                 }
 
-                // 4. Send message (dummy implementation)
-                boolean sent = messageService.sendMessage(student, messageContent,null);
-                if (sent) {
-                    messageLogRepository.save(new MessageLog(student, request.getChannel(), MessageLog.MessageStatus.SUCCESS, messageContent, null));
-                    successCount++;
-                } else {
-                    throw new RuntimeException("메시지 발송 실패");
-                }
+                // 4. Log success
+                messageLogRepository.save(new MessageLog(student, request.getChannel(), MessageLog.MessageStatus.SUCCESS, messageContent, null));
+                successCount++;
+
             } catch (Exception e) {
-                messageLogRepository.save(new MessageLog(student, request.getChannel(), MessageLog.MessageStatus.FAIL, null, e.getMessage()));
+                log.error("Failed to dispatch message to student {}: {}", student.getId(), e.getMessage(), e);
+                messageLogRepository.save(new MessageLog(student, request.getChannel(), MessageLog.MessageStatus.FAIL, messageContent, e.getMessage()));
                 failedCount++;
             }
         }

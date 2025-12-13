@@ -6,6 +6,7 @@ import com.jspark.pw3_attendant.service.Student.dto.StudentRequest;
 import com.jspark.pw3_attendant.service.Student.dto.StudentResponse;
 import com.jspark.pw3_attendant.service.StudentClass.StudentClassService;
 
+import com.jspark.pw3_attendant.service.qr.QrService;
 import com.jspark.pw3_attendant.service.Student.dto.MonthlyStudentRegistrationResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import java.util.Map;
@@ -18,17 +19,29 @@ import java.util.stream.Collectors;
 
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/students")
+@RequestMapping("/api/students") // URL 경로 변경
 public class StudentController {
 
     private final StudentService studentService;
     private final StudentClassService studentClassService;
+    private final QrService qrService; // QrService 의존성 주입
 
     @PostMapping
     @Operation(summary = "학생 생성")
     public StudentResponse createStudent(@RequestBody StudentRequest request) {
         Student savedStudent = studentService.save(request);
         return StudentResponse.from(savedStudent, Map.of());
+    }
+
+    @PostMapping("/{studentId}/send-qr")
+    @Operation(summary = "학생에게 QR 코드 링크 발송")
+    public ResponseEntity<String> sendQrCode(@PathVariable Long studentId) {
+        boolean success = qrService.sendPersonalQrCodeSms(studentId);
+        if (success) {
+            return ResponseEntity.ok("QR 코드가 성공적으로 발송되었습니다.");
+        } else {
+            return ResponseEntity.internalServerError().body("QR 코드 발송에 실패했습니다.");
+        }
     }
 
     @PutMapping("/{id}")
@@ -42,6 +55,7 @@ public class StudentController {
         studentService.deleteStudent(id);
         return ResponseEntity.ok("학생이 삭제되었습니다.");
     }
+    // ... (기존 GET 메서드들)
 
     @GetMapping("/{id}")
     @Operation(summary = "학생 단일 조회")
