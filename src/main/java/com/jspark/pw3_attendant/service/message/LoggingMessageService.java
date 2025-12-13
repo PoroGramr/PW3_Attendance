@@ -11,8 +11,6 @@ public class LoggingMessageService implements MessageService {
 
     @Override
     public boolean sendMessage(Student student, String content, String imageUrl) {
-        // This is a dummy implementation that logs the message to the console.
-        // In a real-world scenario, this service would integrate with an external SMS/Kakao/Email provider.
         log.info("-----> Sending message to: {} (ID: {})", student.getName(), student.getId());
         log.info("-----> Message content: {}", content);
         if (imageUrl != null && !imageUrl.isBlank()) {
