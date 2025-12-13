@@ -22,7 +22,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 
-import com.jspark.pw3_attendant.service.attendance.dto.ScanRequestDto;
+import com.jspark.pw3_attendant.service.Attendance.dto.ScanRequestDto;
 
 
 @RestController

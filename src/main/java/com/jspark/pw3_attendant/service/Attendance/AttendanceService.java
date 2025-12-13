@@ -13,6 +13,7 @@ import com.jspark.pw3_attendant.repository.StudentClass.StudentClassRepository;
 import com.jspark.pw3_attendant.repository.TeacherClass.TeacherClassRepository;
 import com.jspark.pw3_attendant.repository.student_qr.StudentQrRepository;
 import com.jspark.pw3_attendant.service.Attendance.dto.ClassAttendanceResponse;
+import com.jspark.pw3_attendant.service.Attendance.dto.ScanRequestDto;
 import com.jspark.pw3_attendant.service.Attendance.dto.ScanResponseDto;
 import com.jspark.pw3_attendant.service.Attendance.dto.StudentAttendanceStatusDto;
 import com.jspark.pw3_attendant.service.Attendance.dto.ClassSundayAttendanceResponse;
@@ -45,7 +46,7 @@ public class AttendanceService {
 
     @Transactional
     public ScanResponseDto processScan(
-        com.jspark.pw3_attendant.service.attendance.dto.ScanRequestDto request) {
+        ScanRequestDto request) {
         String[] parts = request.getQrPayload().split(":");
         if (parts.length != 3 || !"ATT-STU".equals(parts[0])) {
             return new ScanResponseDto("INVALID_QR");
