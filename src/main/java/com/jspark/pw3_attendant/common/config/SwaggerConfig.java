@@ -11,7 +11,9 @@ import org.springframework.context.annotation.Configuration;
 @OpenAPIDefinition(
     servers = {
         @Server(url = "http://localhost:8080", description = "Local Dev Server"),
+        @Server(url = "https://pw3hubapi.porogramr.site/", description = "aws Production Server"),
         @Server(url = "https://pw3api.porogramr.site", description = "Production Server")
+
     }
 )
 public class SwaggerConfig {
