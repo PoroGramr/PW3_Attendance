@@ -1,0 +1,73 @@
+name: Deploy to Amazon EC2
+
+on:
+  push:
+    branches:
+      - main  # 'main' 브랜치에 푸시될 때 워크플로우를 실행합니다.
+
+env:
+  DOCKER_IMAGE_NAME: ${{ secrets.DOCKERHUB_USERNAME }}/pw3-attendant # Docker Hub 사용자 이름과 이미지 이름을 설정합니다.
+
+jobs:
+  build-and-push:
+    name: Build and Push Docker Image
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: |
+            ${{ env.DOCKER_IMAGE_NAME }}:latest
+            ${{ env.DOCKER_IMAGE_NAME }}:${{ github.sha }}
+          cache-from: type=registry,ref=${{ env.DOCKER_IMAGE_NAME }}:latest
+          cache-to: type=inline
+
+  deploy-to-ec2:
+    name: Deploy to EC2 instance
+    runs-on: ubuntu-latest
+    needs: build-and-push # 'build-and-push' 작업이 성공해야 실행됩니다.
+    steps:
+      - name: SSH and Deploy
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            # Docker Hub 로그인
+            echo ${{ secrets.DOCKERHUB_TOKEN }} | docker login -u ${{ secrets.DOCKERHUB_USERNAME }} --password-stdin
+            
+            # .env.production 파일 생성
+            echo "${{ secrets.PRODUCTION_ENV_FILE }}" > .env.production
+            
+            # 최신 이미지 pull
+            docker pull ${{ env.DOCKER_IMAGE_NAME }}:latest
+            
+            # 기존 컨테이너 중지 및 삭제 (컨테이너 이름: pw3-attendant-container)
+            if [ "$(docker ps -q -f name=pw3-attendant-container)" ]; then
+              docker stop pw3-attendant-container
+              docker rm pw3-attendant-container
+            fi
+            
+            # 새 컨테이너 실행 (--env-file 옵션 사용)
+            docker run -d --name pw3-attendant-container -p 8080:8080 \
+              --env-file .env.production \
+              ${{ env.DOCKER_IMAGE_NAME }}:latest

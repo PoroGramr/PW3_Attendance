@@ -20,7 +20,7 @@ spring:
       matching-strategy: ant_path_matcher
 
 app:
-  qr-url-base: "http://localhost:8080"
+  qr-url-base: ${QR_URL_BASE}
 
 coolsms:
   api:
