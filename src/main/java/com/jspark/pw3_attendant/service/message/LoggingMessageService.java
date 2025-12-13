@@ -22,6 +22,6 @@ public class LoggingMessageService implements MessageService {
 
     @Override
     public MessageLog.MessageChannel getMessageChannel() {
-        return MessageLog.MessageChannel.SMS; // Default or fallback channel
+        return MessageLog.MessageChannel.SMS;
     }
 }
