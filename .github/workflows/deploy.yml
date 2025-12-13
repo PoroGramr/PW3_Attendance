@@ -16,6 +16,29 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x ./gradlew
+        
+      - name: Build with Gradle
+        run: ./gradlew build -x test # 테스트는 제외하고 빌드
+
+      - name: Rename JAR file
+        run: |
+          JAR_FILE=$(find build/libs -name "*.jar" ! -name "*-plain.jar")
+          echo "Found JAR file: $JAR_FILE"
+          if [ -z "$JAR_FILE" ]; then
+            echo "Error: No JAR file found."
+            exit 1
+          fi
+          mv "$JAR_FILE" app.jar
+          echo "Renamed to app.jar"
+
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
