@@ -18,3 +18,18 @@ spring:
   mvc:
     pathmatch:
       matching-strategy: ant_path_matcher
+
+app:
+  qr-url-base: ${QR_URL_BASE}
+
+coolsms:
+  api:
+    key: ${COOLSMS_API_KEY}
+    secret: ${COOLSMS_SECRET_KEY}
+    number: ${COOLSMS_SENDER_NUMBER}
+
+external:
+  imgbb:
+    api:
+      key: ${IMGBB_API_KEY}
+

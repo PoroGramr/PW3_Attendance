@@ -3,14 +3,22 @@ package com.jspark.pw3_attendant.service.Attendance;
 
 import com.jspark.pw3_attendant.domain.Attendance.Attendance;
 import com.jspark.pw3_attendant.domain.Attendance.Attendance.AttendanceStatus;
+import com.jspark.pw3_attendant.domain.ClassRoom.ClassRoom;
 import com.jspark.pw3_attendant.domain.StudentClass.StudentClass;
 
+import com.jspark.pw3_attendant.domain.student_qr.StudentQr;
 import com.jspark.pw3_attendant.repository.Attendance.AttendanceRepository;
 import com.jspark.pw3_attendant.repository.Student.StudentRepository;
 import com.jspark.pw3_attendant.repository.StudentClass.StudentClassRepository;
+import com.jspark.pw3_attendant.repository.TeacherClass.TeacherClassRepository;
+import com.jspark.pw3_attendant.repository.student_qr.StudentQrRepository;
+import com.jspark.pw3_attendant.service.Attendance.dto.ClassAttendanceResponse;
+import com.jspark.pw3_attendant.service.Attendance.dto.ScanResponseDto;
+import com.jspark.pw3_attendant.service.Attendance.dto.StudentAttendanceStatusDto;
 import com.jspark.pw3_attendant.service.Attendance.dto.ClassSundayAttendanceResponse;
 import com.jspark.pw3_attendant.service.Attendance.dto.StudentAttendanceResponse;
 import com.jspark.pw3_attendant.service.Attendance.dto.SundayAttendanceSummaryResponse;
+
 import java.util.ArrayList;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -20,6 +28,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
+import java.util.Comparator;
 
 @Service
 @RequiredArgsConstructor
@@ -29,6 +39,49 @@ public class AttendanceService {
     private final AttendanceRepository attendanceRepository;
     private final StudentClassRepository studentClassRepository;
     private final StudentRepository studentRepository;
+    private final TeacherClassRepository teacherClassRepository;
+    private final StudentQrRepository studentQrRepository;
+
+
+    @Transactional
+    public ScanResponseDto processScan(
+        com.jspark.pw3_attendant.service.attendance.dto.ScanRequestDto request) {
+        // 1. Parse qrPayload
+        String[] parts = request.getQrPayload().split(":");
+        if (parts.length != 3 || !"ATT-STU".equals(parts[0])) {
+            return new ScanResponseDto("INVALID_QR");
+        }
+
+        Long studentId;
+        String qrSecret;
+        try {
+            studentId = Long.parseLong(parts[1]);
+            qrSecret = parts[2];
+        } catch (NumberFormatException e) {
+            return new ScanResponseDto("INVALID_QR_PAYLOAD");
+        }
+
+        // 2. Validate QR Secret
+        StudentQr studentQr = studentQrRepository.findByStudentId(studentId)
+            .orElseThrow(() -> new IllegalArgumentException("학생 QR 정보를 찾을 수 없습니다."));
+
+        if (!studentQr.getQrSecret().equals(qrSecret)) {
+            return new ScanResponseDto("INVALID_QR_SECRET");
+        }
+
+        // 3. Find a valid StudentClass for the student for the current year
+        int schoolYear = java.time.LocalDate.now().getYear(); // TODO: Refine school year logic
+        StudentClass studentClass = studentClassRepository.findByStudentIdAndSchoolYear(studentId, schoolYear)
+            .orElseThrow(() -> new IllegalArgumentException("해당 학생은 금년에 등록된 반이 없습니다."));
+
+        // 4. Record attendance
+        // TODO: Add logic for attendance time validation (e.g., only within class hours).
+        boolean created = upsertAttendance(studentClass.getId(), LocalDate.now(), request.getStatus());
+        Attendance attendance = attendanceRepository.findByStudentClassIdAndDate(studentClass.getId(), LocalDate.now())
+            .orElseThrow(() -> new IllegalStateException("출석 기록 생성에 실패했습니다."));
+
+        return new ScanResponseDto(created ? "SUCCESS" : "DUPLICATE", studentQr.getStudent(), attendance);
+    }
 
     @Transactional
     public boolean upsertAttendance(Long studentClassId, LocalDate date, AttendanceStatus status) {
@@ -164,6 +217,57 @@ public class AttendanceService {
 
                 return new ClassSundayAttendanceResponse(sunday, attendedCount, totalCount);
             })
+            .collect(Collectors.toList());
+    }
+
+    public List<ClassAttendanceResponse> getAttendanceByClassForDateAndYear(Integer schoolYear, LocalDate date) {
+        // 1. 해당 schoolYear의 모든 StudentClass 매핑을 가져옵니다.
+        List<StudentClass> studentClasses = studentClassRepository.findAllBySchoolYear(schoolYear);
+
+        // 2. ClassRoom별로 학생들의 출석 정보를 그룹화합니다.
+        Map<ClassRoom, List<StudentClass>> studentClassesByRoom = studentClasses.stream()
+            .collect(Collectors.groupingBy(StudentClass::getClassRoom));
+
+        // 3. 각 ClassRoom에 대해 ClassAttendanceResponse를 생성합니다.
+        return studentClassesByRoom.entrySet().stream()
+            .map(entry -> {
+                ClassRoom classRoom = entry.getKey();
+                List<StudentClass> studentsInClass = entry.getValue();
+
+                // 4. 해당 ClassRoom의 선생님 이름을 찾습니다.
+                String teacherName = teacherClassRepository.findByClassRoomIdAndSchoolYear(classRoom.getId(), schoolYear)
+                    .map(teacherClass -> teacherClass.getTeacher().getName())
+                    .orElse("담당 선생님 없음"); // 담당 선생님이 없을 경우 기본값
+
+                // 5. 학생별 출석 상태를 가져옵니다.
+                List<StudentAttendanceStatusDto> studentAttendanceStatuses = studentsInClass.stream()
+                    .map(sc -> {
+                        Optional<Attendance> attendanceOpt = attendanceRepository.findByStudentClassIdAndDate(sc.getId(), date);
+                        AttendanceStatus status = attendanceOpt
+                            .map(Attendance::getStatus)
+                            .orElse(AttendanceStatus.UNCHECKED); // 출석 기록이 없으면 UNCHECKED
+
+                        return new StudentAttendanceStatusDto(
+                            sc.getId(),
+                            sc.getStudent().getName(),
+                            status
+                        );
+                    })
+                    // 학생 이름순으로 정렬
+                    .sorted(Comparator.comparing(StudentAttendanceStatusDto::getStudentName))
+                    .collect(Collectors.toList());
+
+                // 6. ClassAttendanceResponse 객체를 생성합니다.
+                return new ClassAttendanceResponse(
+                    classRoom.getId(),
+                    classRoom.getName(),
+                    teacherName,
+                    studentAttendanceStatuses
+                );
+            })
+            // 반 이름 또는 학년-반 번호 순으로 정렬
+            .sorted(Comparator
+                .comparing(ClassAttendanceResponse::getClassName)) // Assuming classRoom.getName() provides a sortable order
             .collect(Collectors.toList());
     }
 }

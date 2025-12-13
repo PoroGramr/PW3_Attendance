@@ -1,9 +1,18 @@
 package com.jspark.pw3_attendant.service.Student.dto;
 
 
+import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.fasterxml.jackson.datatype.jsr310.deser.LocalDateDeserializer;
+import com.fasterxml.jackson.datatype.jsr310.ser.LocalDateSerializer;
 import com.jspark.pw3_attendant.domain.Student.Student;
-import com.jspark.pw3_attendant.domain.StudentClass.StudentClass;
+import com.jspark.pw3_attendant.domain.Student.Student.Sex;
+import com.jspark.pw3_attendant.service.ClassRoom.dto.ClassRoomResponse;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Map;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
@@ -13,32 +22,30 @@ public class StudentResponse {
 
     private Long id;
     private String name;
-    private LocalDate birth;       // 신규 필드
-    private String phone;          // 신규 필드
-    private Integer schoolYear;    // 신규 필드
-    private Long classRoomId;
+    @JsonSerialize(using = LocalDateSerializer.class)
+    @JsonDeserialize(using = LocalDateDeserializer.class)
+    @JsonFormat(pattern = "yyyy-MM-dd")
+    private LocalDate birth;
+    private Sex sex;
+    private String phone;
+    private String parentPhone;
+    private String school;
+    private String memo;
+    private LocalDateTime deletedAt;
+    private Map<Integer, List<ClassRoomResponse>> classesByYear;
 
-    public static StudentResponse from(Student student) {
+    public static StudentResponse from(Student student, Map<Integer, List<ClassRoomResponse>> classesByYear) {
         return new StudentResponse(
             student.getId(),
             student.getName(),
-            null,    // birth
-            null,    // phone
-            null,    // schoolYear
-            null
-        );
-    }
-
-    // ─ 추가하는, 학년도·반 정보까지 채워주는 맵핑
-    public static StudentResponse from(StudentClass sc) {
-        Student s = sc.getStudent();
-        return new StudentResponse(
-            s.getId(),
-            s.getName(),
-            s.getBirth(),
-            s.getPhone(),
-            sc.getSchoolYear(),
-            sc.getClassRoom().getId()
+            student.getBirth(),
+            student.getSex(),
+            student.getPhone(),
+            student.getParentPhone(),
+            student.getSchool(),
+            student.getMemo(),
+            student.getDeletedAt(),
+            classesByYear
         );
     }
 }

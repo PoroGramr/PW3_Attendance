@@ -6,8 +6,10 @@ import com.jspark.pw3_attendant.service.Student.dto.StudentRequest;
 import com.jspark.pw3_attendant.service.Student.dto.StudentResponse;
 import com.jspark.pw3_attendant.service.StudentClass.StudentClassService;
 
+import com.jspark.pw3_attendant.service.qr.QrService;
 import com.jspark.pw3_attendant.service.Student.dto.MonthlyStudentRegistrationResponse;
 import io.swagger.v3.oas.annotations.Operation;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -17,24 +19,34 @@ import java.util.stream.Collectors;
 
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/students")
+@RequestMapping("/api/students") // URL 경로 변경
 public class StudentController {
 
     private final StudentService studentService;
     private final StudentClassService studentClassService;
-    /**
-     * 학생 등록
-     */
+    private final QrService qrService; // QrService 의존성 주입
+
     @PostMapping
     @Operation(summary = "학생 생성")
     public StudentResponse createStudent(@RequestBody StudentRequest request) {
         Student savedStudent = studentService.save(request);
-        return StudentResponse.from(savedStudent);
+        return StudentResponse.from(savedStudent, Map.of());
+    }
+
+    @PostMapping("/{studentId}/send-qr")
+    @Operation(summary = "학생에게 QR 코드 링크 발송")
+    public ResponseEntity<String> sendQrCode(@PathVariable Long studentId) {
+        boolean success = qrService.sendPersonalQrCodeSms(studentId);
+        if (success) {
+            return ResponseEntity.ok("QR 코드가 성공적으로 발송되었습니다.");
+        } else {
+            return ResponseEntity.internalServerError().body("QR 코드 발송에 실패했습니다.");
+        }
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Student> updateStudent(@PathVariable Long id, @RequestBody Student studentDetails) {
-        Student updatedStudent = studentService.updateStudent(id, studentDetails);
+    public ResponseEntity<StudentResponse> updateStudent(@PathVariable Long id, @RequestBody StudentRequest request) {
+        StudentResponse updatedStudent = studentService.updateStudent(id, request);
         return ResponseEntity.ok(updatedStudent);
     }
 
@@ -43,16 +55,13 @@ public class StudentController {
         studentService.deleteStudent(id);
         return ResponseEntity.ok("학생이 삭제되었습니다.");
     }
+    // ... (기존 GET 메서드들)
 
-    /**
-     * 학생 단건 조회
-     */
     @GetMapping("/{id}")
     @Operation(summary = "학생 단일 조회")
     public StudentResponse getStudent(@PathVariable Long id) {
         try {
-            Student student = studentService.findById(id);
-            return StudentResponse.from(student);
+            return studentService.findById(id);
         } catch (IllegalArgumentException e) {
             throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "학생을 찾을 수 없습니다.");
         }
@@ -64,10 +73,7 @@ public class StudentController {
     @GetMapping
     @Operation(summary = "학생 전체 조회")
     public List<StudentResponse> getAllStudents() {
-        return studentService.findAll()
-            .stream()
-            .map(StudentResponse::from)
-            .collect(Collectors.toList());
+        return studentService.findAll();
     }
 
     @GetMapping("/studentsWithClassInfo")

@@ -1,5 +1,6 @@
 package com.jspark.pw3_attendant.repository.StudentClass;
 
+import com.jspark.pw3_attendant.domain.Student.Student;
 import com.jspark.pw3_attendant.domain.StudentClass.StudentClass;
 import java.util.List;
 import java.util.Optional;
@@ -24,4 +25,7 @@ public interface StudentClassRepository extends JpaRepository<StudentClass, Long
     long countBySchoolYear(Integer schoolYear);
 
     long countByClassRoomIdAndSchoolYear(Long classRoomId, Integer schoolYear);
+
+    @EntityGraph(attributePaths = {"classRoom"})
+    List<StudentClass> findAllByStudent(Student student);
 }
