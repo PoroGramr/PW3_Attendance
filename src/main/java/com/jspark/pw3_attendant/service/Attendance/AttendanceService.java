@@ -46,7 +46,6 @@ public class AttendanceService {
     @Transactional
     public ScanResponseDto processScan(
         com.jspark.pw3_attendant.service.attendance.dto.ScanRequestDto request) {
-        // 1. Parse qrPayload
         String[] parts = request.getQrPayload().split(":");
         if (parts.length != 3 || !"ATT-STU".equals(parts[0])) {
             return new ScanResponseDto("INVALID_QR");
