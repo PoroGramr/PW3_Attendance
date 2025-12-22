@@ -3,13 +3,7 @@ package com.jspark.pw3_attendant.controller;
 import com.jspark.pw3_attendant.domain.Attendance.Attendance.AttendanceStatus;
 import com.jspark.pw3_attendant.service.Attendance.AttendanceService;
 
-import com.jspark.pw3_attendant.service.Attendance.dto.AttendanceResponse;
-import com.jspark.pw3_attendant.service.Attendance.dto.ClassAttendanceResponse; // New import
-import com.jspark.pw3_attendant.service.Attendance.dto.ScanResponseDto;
-import com.jspark.pw3_attendant.service.Attendance.dto.StudentAttendanceResponse;
-import com.jspark.pw3_attendant.service.Attendance.dto.ClassSundayAttendanceResponse;
-import com.jspark.pw3_attendant.service.Attendance.dto.SundayAttendanceSummaryResponse;
-import com.jspark.pw3_attendant.service.Attendance.dto.UpsertAttendanceRequest;
+import com.jspark.pw3_attendant.service.Attendance.dto.*;
 import io.swagger.v3.oas.annotations.Operation;
 import java.time.LocalDate;
 import lombok.RequiredArgsConstructor;
@@ -22,15 +16,22 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 
-import com.jspark.pw3_attendant.service.Attendance.dto.ScanRequestDto;
-
-
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/attendances")
+@RequestMapping("/api/attendances") // 경로 변경
 public class AttendanceController {
 
     private final AttendanceService attendanceService;
+
+    @GetMapping("/summary-by-date")
+    @Operation(summary = "일별 출석 현황 요약 (반별, 교사별)")
+    public ResponseEntity<DailyAttendanceSummaryResponse> getDailyAttendanceSummary(
+        @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+        @RequestParam Integer schoolYear
+    ) {
+        DailyAttendanceSummaryResponse response = attendanceService.getDailyAttendanceSummary(date, schoolYear);
+        return ResponseEntity.ok(response);
+    }
 
     @GetMapping("/summary/sundays")
     @Operation(summary = "일요일별 전체 출석 요약 조회")

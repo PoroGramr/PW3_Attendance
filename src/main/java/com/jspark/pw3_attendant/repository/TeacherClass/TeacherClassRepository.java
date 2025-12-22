@@ -11,6 +11,7 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface TeacherClassRepository extends JpaRepository<TeacherClass, Long> {
     Optional<TeacherClass> findByClassRoomIdAndSchoolYear(Long classRoomId,Integer schoolYear);
+    List<TeacherClass> findAllByClassRoomIdAndSchoolYear(Long classRoomId, int schoolYear);
 
     List<TeacherClass> findAllBySchoolYear(Integer schoolYear);
 

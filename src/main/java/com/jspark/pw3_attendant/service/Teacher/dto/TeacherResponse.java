@@ -50,4 +50,18 @@ public class TeacherResponse {
             classesByYear
         );
     }
+
+    public static TeacherResponse from(Teacher teacher) {
+        return new TeacherResponse(
+            teacher.getId(),
+            teacher.getName(),
+            teacher.getBirth(),
+            teacher.getSex(),
+            teacher.getPhone(),
+            teacher.getTeacherType(),
+            teacher.getMemo(),
+            teacher.getDeletedAt(),
+            null // 담당 반 정보는 포함하지 않음
+        );
+    }
 }

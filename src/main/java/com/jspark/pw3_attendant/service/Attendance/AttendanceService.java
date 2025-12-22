@@ -3,24 +3,25 @@ package com.jspark.pw3_attendant.service.Attendance;
 
 import com.jspark.pw3_attendant.domain.Attendance.Attendance;
 import com.jspark.pw3_attendant.domain.Attendance.Attendance.AttendanceStatus;
+import com.jspark.pw3_attendant.domain.Attendance.AttendanceTeacher;
 import com.jspark.pw3_attendant.domain.ClassRoom.ClassRoom;
+import com.jspark.pw3_attendant.domain.Student.Student;
 import com.jspark.pw3_attendant.domain.StudentClass.StudentClass;
 
+import com.jspark.pw3_attendant.domain.Teacher.Teacher;
 import com.jspark.pw3_attendant.domain.student_qr.StudentQr;
 import com.jspark.pw3_attendant.repository.Attendance.AttendanceRepository;
+import com.jspark.pw3_attendant.repository.Attendance.AttendanceTeacherRepository;
+import com.jspark.pw3_attendant.repository.ClassRoom.ClassRoomRepository;
 import com.jspark.pw3_attendant.repository.Student.StudentRepository;
 import com.jspark.pw3_attendant.repository.StudentClass.StudentClassRepository;
+import com.jspark.pw3_attendant.repository.Teacher.TeacherRepository;
 import com.jspark.pw3_attendant.repository.TeacherClass.TeacherClassRepository;
 import com.jspark.pw3_attendant.repository.student_qr.StudentQrRepository;
-import com.jspark.pw3_attendant.service.Attendance.dto.ClassAttendanceResponse;
-import com.jspark.pw3_attendant.service.Attendance.dto.ScanRequestDto;
-import com.jspark.pw3_attendant.service.Attendance.dto.ScanResponseDto;
-import com.jspark.pw3_attendant.service.Attendance.dto.StudentAttendanceStatusDto;
-import com.jspark.pw3_attendant.service.Attendance.dto.ClassSundayAttendanceResponse;
-import com.jspark.pw3_attendant.service.Attendance.dto.StudentAttendanceResponse;
-import com.jspark.pw3_attendant.service.Attendance.dto.SundayAttendanceSummaryResponse;
+import com.jspark.pw3_attendant.service.Attendance.dto.*;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -42,6 +43,56 @@ public class AttendanceService {
     private final StudentRepository studentRepository;
     private final TeacherClassRepository teacherClassRepository;
     private final StudentQrRepository studentQrRepository;
+    private final ClassRoomRepository classRoomRepository; // 추가
+    private final TeacherRepository teacherRepository; // 추가
+    private final AttendanceTeacherRepository attendanceTeacherRepository; // 추가
+
+    public DailyAttendanceSummaryResponse getDailyAttendanceSummary(LocalDate date, int schoolYear) {
+        // 1. 반별 개인 출석 정보 계산
+        List<ClassRoom> allClassRooms = classRoomRepository.findAll();
+        List<ClassDetailedAttendanceResponse> classAttendances = allClassRooms.stream()
+            .map(classRoom -> {
+                // 해당 반의 학생-반 매핑 정보 조회
+                List<StudentClass> studentClasses = studentClassRepository.findAllByClassRoomIdAndSchoolYear(classRoom.getId(), schoolYear);
+
+                // 각 학생의 상세 출석 정보 조회
+                List<StudentAttendanceDetail> studentDetails = studentClasses.stream()
+                    .map(sc -> {
+                        Optional<Attendance> attendanceOpt = attendanceRepository.findByStudentClassIdAndDate(sc.getId(), date);
+                        return StudentAttendanceDetail.builder()
+                            .studentClassId(sc.getId()) // studentClassId 추가
+                            .studentId(sc.getStudent().getId())
+                            .studentName(sc.getStudent().getName())
+                            .status(attendanceOpt.map(Attendance::getStatus).orElse(null))
+                            .updatedAt(attendanceOpt.map(Attendance::getUpdatedAt).orElse(null))
+                            .build();
+                    })
+                    .sorted(Comparator.comparing(StudentAttendanceDetail::getStudentName)) // 이름순 정렬
+                    .collect(Collectors.toList());
+
+                return new ClassDetailedAttendanceResponse(classRoom.getId(), classRoom.getName(), studentDetails);
+            })
+            .sorted(Comparator.comparing(ClassDetailedAttendanceResponse::getClassRoomName)) // 반 이름순 정렬
+            .collect(Collectors.toList());
+
+        // 2. 교사별 출석 정보 계산 (기존 로직 유지)
+        List<Teacher> allTeachers = teacherRepository.findAll();
+        List<TeacherAttendanceSummary> teacherAttendances = allTeachers.stream()
+            .map(teacher -> {
+                Optional<AttendanceTeacher> attendanceOpt = attendanceTeacherRepository.findByTeacherAndDate(teacher, date);
+                return TeacherAttendanceSummary.builder()
+                    .teacherId(teacher.getId())
+                    .teacherName(teacher.getName())
+                    .status(attendanceOpt.map(att -> Attendance.AttendanceStatus.valueOf(att.getStatus().name())).orElse(null))
+                    .updatedAt(attendanceOpt.map(AttendanceTeacher::getUpdatedAt).orElse(null))
+                    .build();
+            })
+            .sorted(Comparator.comparing(TeacherAttendanceSummary::getTeacherName)) // 이름순 정렬
+            .collect(Collectors.toList());
+
+        // 3. 최종 응답 조합
+        return new DailyAttendanceSummaryResponse(date, schoolYear, classAttendances, teacherAttendances);
+    }
 
 
     @Transactional

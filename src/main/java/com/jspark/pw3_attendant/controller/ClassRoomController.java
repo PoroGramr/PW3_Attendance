@@ -4,6 +4,7 @@ import com.jspark.pw3_attendant.domain.ClassRoom.ClassRoom;
 import com.jspark.pw3_attendant.service.ClassRoom.ClassRoomService;
 import com.jspark.pw3_attendant.service.ClassRoom.dto.ClassRoomRequest;
 import com.jspark.pw3_attendant.service.ClassRoom.dto.ClassRoomResponse;
+import com.jspark.pw3_attendant.service.ClassRoom.dto.ClassRoomDetailResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -14,7 +15,7 @@ import java.util.stream.Collectors;
 
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/classrooms")
+@RequestMapping("/api/class-rooms") // 경로 변경
 public class ClassRoomController {
 
     private final ClassRoomService classRoomService;
@@ -27,6 +28,18 @@ public class ClassRoomController {
     public ClassRoomResponse createClassRoom(@RequestBody ClassRoomRequest request) {
         ClassRoom savedClassRoom = classRoomService.save(request);
         return ClassRoomResponse.from(savedClassRoom);
+    }
+
+    @GetMapping("/details")
+    @Operation(summary = "연도별 반 상세 조회 (학생, 교사 포함)")
+    public ResponseEntity<ClassRoomDetailResponse> getClassRoomDetails(
+        @RequestParam("schoolYear") int schoolYear,
+        @RequestParam("schoolType") ClassRoom.SchoolType schoolType,
+        @RequestParam("grade") int grade,
+        @RequestParam("classNumber") int classNumber) {
+
+        ClassRoomDetailResponse response = classRoomService.getClassRoomDetails(schoolYear, schoolType, grade, classNumber);
+        return ResponseEntity.ok(response);
     }
 
     /**
