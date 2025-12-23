@@ -21,6 +21,8 @@ spring:
 
 app:
   qr-url-base: ${QR_URL_BASE}
+  report:
+    recipient-phone-number: ${REPORT_RECIPIENT_PHONE_NUMBER}
 
 coolsms:
   api:
