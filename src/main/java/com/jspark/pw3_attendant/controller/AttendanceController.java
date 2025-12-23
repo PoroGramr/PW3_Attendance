@@ -18,10 +18,19 @@ import java.util.stream.Collectors;
 
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/api/attendances") // 경로 변경
+@RequestMapping("/api/attendances")
 public class AttendanceController {
 
     private final AttendanceService attendanceService;
+
+    @GetMapping(value = "/report-by-date", produces = "text/plain;charset=UTF-8")
+    @Operation(summary = "일별 출석 리포트 텍스트 생성")
+    public ResponseEntity<String> getDailyAttendanceReport(
+        @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
+    ) {
+        String report = attendanceService.getDailyAttendanceReport(date);
+        return ResponseEntity.ok(report);
+    }
 
     @GetMapping("/summary-by-date")
     @Operation(summary = "일별 출석 현황 요약 (반별, 교사별)")

@@ -6,11 +6,13 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.util.Comparator;
+
 @Entity
 @Getter
 @NoArgsConstructor
 @Table(name = "class_room")
-public class ClassRoom extends BaseEntity {
+public class ClassRoom extends BaseEntity implements Comparable<ClassRoom> {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -26,8 +28,22 @@ public class ClassRoom extends BaseEntity {
     @Column(nullable = false)
     private Integer classNumber;    // 🔥 몇 반
 
+    @Override
+    public int compareTo(ClassRoom other) {
+        return Comparator.comparing(ClassRoom::getSchoolType, Comparator.nullsFirst(Comparator.naturalOrder()))
+            .thenComparing(ClassRoom::getGrade, Comparator.nullsFirst(Comparator.naturalOrder()))
+            .thenComparing(ClassRoom::getClassNumber, Comparator.nullsFirst(Comparator.naturalOrder()))
+            .compare(this, other);
+    }
+
     public String getName() {
-        return schoolType.name() + " " + grade + "학년 " + classNumber + "반";
+        String prefix = "";
+        if (this.schoolType == SchoolType.MIDDLE) {
+            prefix = "중";
+        } else if (this.schoolType == SchoolType.HIGH) {
+            prefix = "고";
+        }
+        return prefix + " " + grade + "-" + classNumber;
     }
 
     public void setSchoolType(SchoolType schoolType) {

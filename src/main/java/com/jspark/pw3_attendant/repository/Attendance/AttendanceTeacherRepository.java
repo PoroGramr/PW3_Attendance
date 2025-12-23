@@ -1,6 +1,7 @@
 package com.jspark.pw3_attendant.repository.Attendance;
 
 import com.jspark.pw3_attendant.domain.Attendance.AttendanceTeacher;
+import com.jspark.pw3_attendant.domain.Attendance.AttendanceTeacher.AttendanceStatus;
 import com.jspark.pw3_attendant.domain.Teacher.Teacher;
 import java.time.LocalDate;
 import java.util.List;
@@ -18,4 +19,6 @@ public interface AttendanceTeacherRepository extends JpaRepository<AttendanceTea
     boolean existsByTeacherAndDate(Teacher teacher, LocalDate date);
 
     List<AttendanceTeacher> findByDate(LocalDate date);
+
+    long countByDateAndStatusIn(LocalDate date, List<AttendanceStatus> statuses);
 }

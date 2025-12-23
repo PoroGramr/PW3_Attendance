@@ -20,18 +20,13 @@ import com.jspark.pw3_attendant.repository.TeacherClass.TeacherClassRepository;
 import com.jspark.pw3_attendant.repository.student_qr.StudentQrRepository;
 import com.jspark.pw3_attendant.service.Attendance.dto.*;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
-import java.util.List;
-import java.util.Map;
-import java.util.Comparator;
 
 @Service
 @RequiredArgsConstructor
@@ -43,9 +38,46 @@ public class AttendanceService {
     private final StudentRepository studentRepository;
     private final TeacherClassRepository teacherClassRepository;
     private final StudentQrRepository studentQrRepository;
-    private final ClassRoomRepository classRoomRepository; // 추가
-    private final TeacherRepository teacherRepository; // 추가
-    private final AttendanceTeacherRepository attendanceTeacherRepository; // 추가
+    private final ClassRoomRepository classRoomRepository;
+    private final TeacherRepository teacherRepository;
+    private final AttendanceTeacherRepository attendanceTeacherRepository;
+
+    public String getDailyAttendanceReport(LocalDate date) {
+        // 1. 총 출석 학생 수 계산
+        List<Attendance.AttendanceStatus> studentStatuses = Arrays.asList(Attendance.AttendanceStatus.ATTEND, Attendance.AttendanceStatus.LATE);
+        long totalAttendedStudents = attendanceRepository.countByDateAndStatusIn(date, studentStatuses);
+
+        // 2. 총 출석 교사 수 계산
+        List<AttendanceTeacher.AttendanceStatus> teacherStatuses = Arrays.asList(AttendanceTeacher.AttendanceStatus.ATTEND, AttendanceTeacher.AttendanceStatus.LATE);
+        long totalAttendedTeachers = attendanceTeacherRepository.countByDateAndStatusIn(date, teacherStatuses);
+
+        // 3. 출석한 학생 목록을 반별로 그룹화
+        List<Attendance> attendedList = attendanceRepository.findByDateAndStatusIn(date, studentStatuses);
+        Map<ClassRoom, List<Student>> studentsByClass = attendedList.stream()
+            .collect(Collectors.groupingBy(
+                att -> att.getStudentClass().getClassRoom(),
+                TreeMap::new, // 반 이름으로 정렬하기 위해 TreeMap 사용
+                Collectors.mapping(att -> att.getStudentClass().getStudent(), Collectors.toList())
+            ));
+
+        // 4. 최종 리포트 문자열 생성
+        StringBuilder report = new StringBuilder();
+        report.append(date.toString().replace("-", ".")).append("\n");
+        report.append("학생: ").append(totalAttendedStudents).append("명\n");
+        report.append("선생님 (헬퍼포함): ").append(totalAttendedTeachers).append("명\n");
+
+        studentsByClass.forEach((classRoom, students) -> {
+            // 학생 이름을 가나다순으로 정렬
+            String studentNames = students.stream()
+                .map(Student::getName)
+                .sorted()
+                .collect(Collectors.joining(", "));
+
+            report.append("\n").append(classRoom.getName()).append(": ").append(studentNames);
+        });
+
+        return report.toString();
+    }
 
     public DailyAttendanceSummaryResponse getDailyAttendanceSummary(LocalDate date, int schoolYear) {
         // 1. 반별 개인 출석 정보 계산
@@ -224,7 +256,7 @@ public class AttendanceService {
         // 3) 각 studentClass별로 attendance 조회 후 DTO 변환
         return scList.stream()
             .map(sc -> {
-                Optional<Attendance> opt =
+                Optional<Attendance> opt = 
                     attendanceRepository.findByStudentClassIdAndDate(sc.getId(), date);
                 String status = opt
                     .map(a -> a.getStatus().name())
