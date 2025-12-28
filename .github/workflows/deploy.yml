@@ -75,21 +75,42 @@ jobs:
           username: ${{ secrets.EC2_USERNAME }}
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            # .env 파일 생성 (docker-compose가 이 파일을 자동으로 읽어서 환경변수로 사용)
+            # --- Docker Compose V2 (docker compose) 설치 스크립트 시작 ---
+            # docker compose 명령어가 존재하는지 확인하고, 없으면 설치합니다.
+            if ! docker compose version &> /dev/null; then
+              echo "Docker Compose V2 not found. Installing..."
+              DOCKER_CONFIG=${DOCKER_CONFIG:-$HOME/.docker}
+              mkdir -p $DOCKER_CONFIG/cli-plugins
+              # 최신 버전은 다음 링크에서 확인 가능: https://github.com/docker/compose/releases
+              COMPOSE_VERSION="v2.24.6" 
+              curl -SL https://github.com/docker/compose/releases/download/${COMPOSE_VERSION}/docker-compose-linux-x86_64 -o $DOCKER_CONFIG/cli-plugins/docker-compose
+              chmod +x $DOCKER_CONFIG/cli-plugins/docker-compose
+              echo "Docker Compose V2 installed successfully."
+            else
+              echo "Docker Compose V2 is already installed."
+            fi
+            # --- Docker Compose 설치 스크립트 끝 ---
+            
+            # .env 파일 생성
             echo "${{ secrets.PRODUCTION_ENV_FILE }}" > .env
-
-            # docker-compose.yml 파일 생성
+            
+            # docker-compose.yml 파일 생성 및 확인
             echo "${{ secrets.DOCKER_COMPOSE_YML }}" > docker-compose.yml
+            if [ ! -s docker-compose.yml ]; then
+              echo "Error: docker-compose.yml is empty. Make sure the DOCKER_COMPOSE_YML secret is set correctly in your GitHub repository settings."
+              exit 1
+            fi
 
             # Docker Hub 로그인
             echo ${{ secrets.DOCKERHUB_TOKEN }} | docker login -u ${{ secrets.DOCKERHUB_USERNAME }} --password-stdin
             
-            # docker-compose로 최신 app 이미지를 pull
-            docker-compose pull app
+            # 'docker compose' (하이픈 없음) 사용
+            # 최신 app 이미지를 pull
+            docker compose pull app
             
-            # docker-compose로 모든 서비스 (app, db)를 백그라운드에서 실행
+            # 모든 서비스 (app, db)를 백그라운드에서 실행
             # --remove-orphans 옵션은 yml 파일에서 사라진 서비스를 컨테이너에서 삭제합니다.
-            docker-compose up -d --remove-orphans
+            docker compose up -d --remove-orphans
             
             # 사용하지 않는 오래된 Docker 이미지 정리
             docker image prune -f
