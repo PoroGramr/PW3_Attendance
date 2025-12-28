@@ -1,6 +1,3 @@
-# Docker Compose 버전 정의
-version: '3.8'
-
 # 실행할 서비스(컨테이너)들 정의
 services:
   # MySQL 데이터베이스 서비스
