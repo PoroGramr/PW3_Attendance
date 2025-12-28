@@ -75,23 +75,21 @@ jobs:
           username: ${{ secrets.EC2_USERNAME }}
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
+            # .env 파일 생성 (docker-compose가 이 파일을 자동으로 읽어서 환경변수로 사용)
+            echo "${{ secrets.PRODUCTION_ENV_FILE }}" > .env
+
+            # docker-compose.yml 파일 생성
+            echo "${{ secrets.DOCKER_COMPOSE_YML }}" > docker-compose.yml
+
             # Docker Hub 로그인
             echo ${{ secrets.DOCKERHUB_TOKEN }} | docker login -u ${{ secrets.DOCKERHUB_USERNAME }} --password-stdin
             
-            # .env.production 파일 생성
-            echo "${{ secrets.PRODUCTION_ENV_FILE }}" > .env.production
+            # docker-compose로 최신 app 이미지를 pull
+            docker-compose pull app
             
-            # 최신 이미지 pull
-            docker pull ${{ env.DOCKER_IMAGE_NAME }}:latest
+            # docker-compose로 모든 서비스 (app, db)를 백그라운드에서 실행
+            # --remove-orphans 옵션은 yml 파일에서 사라진 서비스를 컨테이너에서 삭제합니다.
+            docker-compose up -d --remove-orphans
             
-            # 기존 컨테이너 중지 및 삭제 (컨테이너 이름: pw3-attendant-container)
-            if [ "$(docker ps -q -f name=pw3-attendant-container)" ]; then
-              docker stop pw3-attendant-container
-              docker rm pw3-attendant-container
-            fi
-            
-            # 새 컨테이너 실행 (--env-file 옵션 사용)
-            docker run -d --name pw3-attendant-container -p 8080:8080 \
-              -e TZ=Asia/Seoul \
-              --env-file .env.production \
-              ${{ env.DOCKER_IMAGE_NAME }}:latest
+            # 사용하지 않는 오래된 Docker 이미지 정리
+            docker image prune -f
