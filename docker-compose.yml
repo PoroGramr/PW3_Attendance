@@ -23,7 +23,7 @@ services:
   # Spring Boot 애플리케이션 서비스
   app:
     # 이 이미지는 GitHub Actions에서 빌드하고 푸시한 이미지를 사용합니다.
-    image: ${DOCKER_IMAGE_NAME}:latest
+    image: jaydenpark33/pw3-attendant:latest
     container_name: pw3-attendant-container # 컨테이너 이름 지정
     restart: always
     depends_on:
