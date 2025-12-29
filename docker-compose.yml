@@ -23,25 +23,15 @@ services:
   # Spring Boot 애플리케이션 서비스
   app:
     # 이 이미지는 GitHub Actions에서 빌드하고 푸시한 이미지를 사용합니다.
-    image: jaydenpark33/pw3-attendant:latest
+    image: ${DOCKER_IMAGE_NAME}:latest
     container_name: pw3-attendant-container # 컨테이너 이름 지정
     restart: always
     depends_on:
       - db # 'db' 서비스가 시작된 후에 'app' 서비스가 시작되도록 보장
     ports:
       - "8080:8080" # 호스트의 8080 포트와 컨테이너의 8080 포트를 연결
-    environment:
-      # Spring Boot가 'db' 컨테이너에 접속하기 위한 설정
-      # 서비스 이름 'db'가 바로 컨테이너의 호스트 이름이 됩니다.
-      SPRING_DATASOURCE_URL: jdbc:mysql://db:3306/${MYSQL_DATABASE}?useUnicode=true&characterEncoding=UTF-8
-      SPRING_DATASOURCE_USERNAME: ${MYSQL_USER}
-      SPRING_DATASOURCE_PASSWORD: ${MYSQL_PASSWORD}
-      # 나머지 애플리케이션 환경 변수들
-      COOLSMS_API_KEY: ${COOLSMS_API_KEY}
-      COOLSMS_SECRET_KEY: ${COOLSMS_SECRET_KEY}
-      COOLSMS_SENDER_NUMBER: ${COOLSMS_SENDER_NUMBER}
-      IMGBB_API_KEY: ${IMGBB_API_KEY}
-      REPORT_RECIPIENT_PHONE_NUMBER: ${REPORT_RECIPIENT_PHONE_NUMBER}
+    env_file:
+      - .env # .env 파일의 모든 변수를 환경변수로 주입
     networks:
       - pw3-network
 
