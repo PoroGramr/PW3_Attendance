@@ -24,7 +24,7 @@ jobs:
 
       - name: Grant execute permission for gradlew
         run: chmod +x ./gradlew
-        
+
       - name: Build with Gradle
         run: ./gradlew build -x test # 테스트는 제외하고 빌드
 
@@ -75,42 +75,23 @@ jobs:
           username: ${{ secrets.EC2_USERNAME }}
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            # --- Docker Compose V2 (docker compose) 설치 스크립트 시작 ---
-            # docker compose 명령어가 존재하는지 확인하고, 없으면 설치합니다.
-            if ! docker compose version &> /dev/null; then
-              echo "Docker Compose V2 not found. Installing..."
-              DOCKER_CONFIG=${DOCKER_CONFIG:-$HOME/.docker}
-              mkdir -p $DOCKER_CONFIG/cli-plugins
-              # 최신 버전은 다음 링크에서 확인 가능: https://github.com/docker/compose/releases
-              COMPOSE_VERSION="v2.24.6" 
-              curl -SL https://github.com/docker/compose/releases/download/${COMPOSE_VERSION}/docker-compose-linux-x86_64 -o $DOCKER_CONFIG/cli-plugins/docker-compose
-              chmod +x $DOCKER_CONFIG/cli-plugins/docker-compose
-              echo "Docker Compose V2 installed successfully."
-            else
-              echo "Docker Compose V2 is already installed."
-            fi
-            # --- Docker Compose 설치 스크립트 끝 ---
-            
-            # .env 파일 생성
-            echo "${{ secrets.PRODUCTION_ENV_FILE }}" > .env
-            
-            # docker-compose.yml 파일 생성 및 확인
-            echo "${{ secrets.DOCKER_COMPOSE_YML }}" > docker-compose.yml
-            if [ ! -s docker-compose.yml ]; then
-              echo "Error: docker-compose.yml is empty. Make sure the DOCKER_COMPOSE_YML secret is set correctly in your GitHub repository settings."
-              exit 1
-            fi
-
             # Docker Hub 로그인
             echo ${{ secrets.DOCKERHUB_TOKEN }} | docker login -u ${{ secrets.DOCKERHUB_USERNAME }} --password-stdin
             
-            # 'docker compose' (하이픈 없음) 사용
-            # 최신 app 이미지를 pull
-            docker compose pull app
+            # .env.production 파일 생성
+            echo "${{ secrets.PRODUCTION_ENV_FILE }}" > .env.production
             
-            # 모든 서비스 (app, db)를 백그라운드에서 실행
-            # --remove-orphans 옵션은 yml 파일에서 사라진 서비스를 컨테이너에서 삭제합니다.
-            docker compose up -d --remove-orphans
+            # 최신 이미지 pull
+            docker pull ${{ env.DOCKER_IMAGE_NAME }}:latest
             
-            # 사용하지 않는 오래된 Docker 이미지 정리
-            docker image prune -f
+            # 기존 컨테이너 중지 및 삭제 (컨테이너 이름: pw3-attendant-container)
+            if [ "$(docker ps -q -f name=pw3-attendant-container)" ]; then
+              docker stop pw3-attendant-container
+              docker rm pw3-attendant-container
+            fi
+            
+            # 새 컨테이너 실행 (--env-file 옵션 사용)
+            docker run -d --name pw3-attendant-container -p 8080:8080 \
+              -e TZ=Asia/Seoul \
+              --env-file .env.production \
+              ${{ env.DOCKER_IMAGE_NAME }}:latest
