@@ -14,7 +14,7 @@ services:
     environment:
       # 아래 환경 변수들은 GitHub Secrets를 통해 주입될 예정입니다.
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_DATABASE: pw3_db
       MYSQL_USER: ${MYSQL_USER}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
     networks:
