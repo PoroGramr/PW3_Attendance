@@ -21,4 +21,6 @@ public interface AttendanceTeacherRepository extends JpaRepository<AttendanceTea
     List<AttendanceTeacher> findByDate(LocalDate date);
 
     long countByDateAndStatusIn(LocalDate date, List<AttendanceStatus> statuses);
+
+    boolean existsByTeacher(Teacher teacher);
 }

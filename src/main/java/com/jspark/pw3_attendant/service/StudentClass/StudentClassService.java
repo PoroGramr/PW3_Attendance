@@ -81,7 +81,9 @@ public class StudentClassService {
 
                 // Find teacher for the classroom and year
                 String teacherName = teacherClassRepository.findByClassRoomIdAndSchoolYear(room.getId(), schoolYear)
-                    .map(teacherClass -> teacherClass.getTeacher().getName())
+                    .map(TeacherClass::getTeacher)
+                    .filter(teacher -> teacher.getDeletedAt() == null) // soft-deleted teacher check
+                    .map(Teacher::getName)
                     .orElse(null);
 
                 return new ClassRoomIdStudentsResponse(
@@ -125,7 +127,9 @@ public class StudentClassService {
         return classRooms.stream()
             .map(classRoom -> {
                 Optional<TeacherClass> teacherClassOpt = teacherClassRepository.findByClassRoomIdAndSchoolYear(classRoom.getId(), schoolYear);
-                Teacher teacher = teacherClassOpt.map(TeacherClass::getTeacher).orElse(null);
+                Teacher teacher = teacherClassOpt.map(TeacherClass::getTeacher)
+                    .filter(t -> t.getDeletedAt() == null)
+                    .orElse(null);
                 return new ClassRoomTeacherResponse(classRoom, teacher);
             })
             .collect(Collectors.toList());

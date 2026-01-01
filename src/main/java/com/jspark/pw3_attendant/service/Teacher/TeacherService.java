@@ -24,7 +24,7 @@ public class TeacherService {
     private final TeacherClassRepository teacherClassRepository;
 
     public TeacherResponse findById(Long teacherId) {
-        Teacher teacher = teacherRepository.findById(teacherId)
+        Teacher teacher = teacherRepository.findByIdAndDeletedAtIsNull(teacherId)
             .orElseThrow(() -> new IllegalArgumentException("선생님을 찾을 수 없습니다."));
 
         Map<Integer, List<ClassRoomResponse>> classesByYear = teacherClassRepository.findAllByTeacher(teacher).stream()
@@ -37,7 +37,7 @@ public class TeacherService {
     }
 
     public List<TeacherResponse> findAll() {
-        return teacherRepository.findAll().stream()
+        return teacherRepository.findAllByDeletedAtIsNull().stream()
             .map(teacher -> {
                 Map<Integer, List<ClassRoomResponse>> classesByYear = teacherClassRepository.findAllByTeacher(teacher).stream()
                     .collect(Collectors.groupingBy(
@@ -63,7 +63,7 @@ public class TeacherService {
 
     @Transactional
     public Teacher updateTeacher(Long id, TeacherRequest request) {
-        Teacher teacher = teacherRepository.findById(id)
+        Teacher teacher = teacherRepository.findByIdAndDeletedAtIsNull(id)
             .orElseThrow(() -> new RuntimeException("선생님을 찾을 수 없습니다."));
 
         teacher.setName(request.getName());

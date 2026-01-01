@@ -19,7 +19,6 @@ import org.hibernate.annotations.Where;
 @NoArgsConstructor
 @Table(name = "teacher")
 @SQLDelete(sql = "UPDATE teacher SET deleted_at = CURRENT_TIMESTAMP WHERE id = ?")
-@Where(clause = "deleted_at IS NULL")
 public class Teacher extends BaseEntity {
 
     @Id
