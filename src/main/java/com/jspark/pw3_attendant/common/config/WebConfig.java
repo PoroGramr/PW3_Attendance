@@ -9,7 +9,7 @@ public class WebConfig implements WebMvcConfigurer {
     @Override
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/**")
-            .allowedOrigins("http://localhost:3000", "https://pw-3-attendance-fe.vercel.app/","https://pw3hubapi.porogramr.site/")
+            .allowedOrigins("http://localhost:3000","http://localhost:8080", "https://pw-3-attendance-fe.vercel.app/","https://pw3hubapi.porogramr.site/" ,"https://api.pw3hub.xyz//")
             .allowedMethods("*");
     }
 }

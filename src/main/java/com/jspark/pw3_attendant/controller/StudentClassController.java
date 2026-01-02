@@ -8,6 +8,8 @@ import com.jspark.pw3_attendant.service.StudentClass.dto.ClassRoomIdStudentsResp
 import com.jspark.pw3_attendant.service.StudentClass.dto.StudentClassRequest;
 import com.jspark.pw3_attendant.service.StudentClass.dto.StudentClassResponse;
 import com.jspark.pw3_attendant.service.StudentClass.dto.StudentSummaryResponse;
+import com.jspark.pw3_attendant.service.promotion.PromotionService;
+import com.jspark.pw3_attendant.service.promotion.dto.PromotionRequestDto;
 import io.swagger.v3.oas.annotations.Operation;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -20,12 +22,20 @@ import org.springframework.web.bind.annotation.*;
 public class StudentClassController {
 
     private final StudentClassService studentClassService;
+    private final PromotionService promotionService;
 
     @PostMapping
     @Operation(summary = "특정 학년도에 특정 학생을 반에 배정")
     public StudentClassResponse createStudentClass(@RequestBody StudentClassRequest request) {
         StudentClass studentClass = studentClassService.save(request);
         return StudentClassResponse.from(studentClass);
+    }
+
+    @PostMapping("/promote")
+    @Operation(summary = "학생들 일괄 진급 처리")
+    public ResponseEntity<Void> promoteStudents(@RequestBody PromotionRequestDto request) {
+        promotionService.promoteStudents(request);
+        return ResponseEntity.ok().build();
     }
 
     @GetMapping("/classroom/{classRoomId}")

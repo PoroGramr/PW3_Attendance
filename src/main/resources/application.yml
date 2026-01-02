@@ -33,3 +33,5 @@ external:
     api:
       key: ${IMGBB_API_KEY}
 
+server:
+  forward-headers-strategy: framework
