@@ -71,7 +71,18 @@ public class StudentClassService {
             studentClasses.stream()
                 .collect(Collectors.groupingBy(StudentClass::getClassRoom));
 
-        // 3) DTO 변환
+        // 3) N+1 해결을 위해 선생님 정보 한번에 로드
+        List<ClassRoom> classRooms = byRoom.keySet().stream().toList();
+        List<TeacherClass> teacherClasses = teacherClassRepository.findAllBySchoolYearAndClassRoomIn(schoolYear, classRooms);
+
+        Map<Long, Teacher> teacherByClassRoomId = teacherClasses.stream()
+            .filter(tc -> tc.getTeacher().getDeletedAt() == null)
+            .collect(Collectors.toMap(
+                tc -> tc.getClassRoom().getId(),
+                TeacherClass::getTeacher
+            ));
+
+        // 4) DTO 변환
         return byRoom.entrySet().stream()
             .map(entry -> {
                 ClassRoom room = entry.getKey();
@@ -80,9 +91,7 @@ public class StudentClassService {
                     .collect(Collectors.toList());
 
                 // Find teacher for the classroom and year
-                String teacherName = teacherClassRepository.findByClassRoomIdAndSchoolYear(room.getId(), schoolYear)
-                    .map(TeacherClass::getTeacher)
-                    .filter(teacher -> teacher.getDeletedAt() == null) // soft-deleted teacher check
+                String teacherName = Optional.ofNullable(teacherByClassRoomId.get(room.getId()))
                     .map(Teacher::getName)
                     .orElse(null);
 

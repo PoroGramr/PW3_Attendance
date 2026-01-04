@@ -9,6 +9,7 @@ import com.jspark.pw3_attendant.domain.Student.Student;
 import com.jspark.pw3_attendant.domain.StudentClass.StudentClass;
 
 import com.jspark.pw3_attendant.domain.Teacher.Teacher;
+import com.jspark.pw3_attendant.domain.TeacherClass.TeacherClass;
 import com.jspark.pw3_attendant.domain.student_qr.StudentQr;
 import com.jspark.pw3_attendant.repository.Attendance.AttendanceRepository;
 import com.jspark.pw3_attendant.repository.Attendance.AttendanceTeacherRepository;
@@ -80,46 +81,57 @@ public class AttendanceService {
     }
 
     public DailyAttendanceSummaryResponse getDailyAttendanceSummary(LocalDate date, int schoolYear) {
-        // 1. 반별 개인 출석 정보 계산
+        // 1. 반별 개인 출석 정보 계산 (N+1 최적화)
         List<ClassRoom> allClassRooms = classRoomRepository.findAll();
+        List<StudentClass> allStudentClassesInYear = studentClassRepository.findAllBySchoolYear(schoolYear);
+        List<Attendance> allAttendancesInDate = attendanceRepository.findAllByStudentClassInAndDate(allStudentClassesInYear, date);
+
+        Map<Long, List<StudentClass>> studentClassesByRoomId = allStudentClassesInYear.stream()
+            .collect(Collectors.groupingBy(sc -> sc.getClassRoom().getId()));
+
+        Map<Long, Attendance> attendanceByStudentClassId = allAttendancesInDate.stream()
+            .collect(Collectors.toMap(att -> att.getStudentClass().getId(), att -> att));
+
         List<ClassDetailedAttendanceResponse> classAttendances = allClassRooms.stream()
             .map(classRoom -> {
-                // 해당 반의 학생-반 매핑 정보 조회
-                List<StudentClass> studentClasses = studentClassRepository.findAllByClassRoomIdAndSchoolYear(classRoom.getId(), schoolYear);
+                List<StudentClass> studentClasses = studentClassesByRoomId.getOrDefault(classRoom.getId(), Collections.emptyList());
 
-                // 각 학생의 상세 출석 정보 조회
                 List<StudentAttendanceDetail> studentDetails = studentClasses.stream()
                     .map(sc -> {
-                        Optional<Attendance> attendanceOpt = attendanceRepository.findByStudentClassIdAndDate(sc.getId(), date);
+                        Attendance attendance = attendanceByStudentClassId.get(sc.getId());
                         return StudentAttendanceDetail.builder()
-                            .studentClassId(sc.getId()) // studentClassId 추가
+                            .studentClassId(sc.getId())
                             .studentId(sc.getStudent().getId())
                             .studentName(sc.getStudent().getName())
-                            .status(attendanceOpt.map(Attendance::getStatus).orElse(null))
-                            .updatedAt(attendanceOpt.map(Attendance::getUpdatedAt).orElse(null))
+                            .status(Optional.ofNullable(attendance).map(Attendance::getStatus).orElse(null))
+                            .updatedAt(Optional.ofNullable(attendance).map(Attendance::getUpdatedAt).orElse(null))
                             .build();
                     })
-                    .sorted(Comparator.comparing(StudentAttendanceDetail::getStudentName)) // 이름순 정렬
+                    .sorted(Comparator.comparing(StudentAttendanceDetail::getStudentName))
                     .collect(Collectors.toList());
 
                 return new ClassDetailedAttendanceResponse(classRoom.getId(), classRoom.getName(), studentDetails);
             })
-            .sorted(Comparator.comparing(ClassDetailedAttendanceResponse::getClassRoomName)) // 반 이름순 정렬
+            .sorted(Comparator.comparing(ClassDetailedAttendanceResponse::getClassRoomName))
             .collect(Collectors.toList());
 
-        // 2. 교사별 출석 정보 계산 (기존 로직 유지)
-        List<Teacher> allTeachers = teacherRepository.findAll();
+        // 2. 교사별 출석 정보 계산 (N+1 최적화)
+        List<Teacher> allTeachers = teacherRepository.findAllByDeletedAtIsNull();
+        List<AttendanceTeacher> allTeacherAttendancesInDate = attendanceTeacherRepository.findByDate(date);
+        Map<Long, AttendanceTeacher> teacherAttendanceByTeacherId = allTeacherAttendancesInDate.stream()
+            .collect(Collectors.toMap(att -> att.getTeacher().getId(), att -> att));
+
         List<TeacherAttendanceSummary> teacherAttendances = allTeachers.stream()
             .map(teacher -> {
-                Optional<AttendanceTeacher> attendanceOpt = attendanceTeacherRepository.findByTeacherAndDate(teacher, date);
+                AttendanceTeacher attendance = teacherAttendanceByTeacherId.get(teacher.getId());
                 return TeacherAttendanceSummary.builder()
                     .teacherId(teacher.getId())
                     .teacherName(teacher.getName())
-                    .status(attendanceOpt.map(att -> Attendance.AttendanceStatus.valueOf(att.getStatus().name())).orElse(null))
-                    .updatedAt(attendanceOpt.map(AttendanceTeacher::getUpdatedAt).orElse(null))
+                    .status(Optional.ofNullable(attendance).map(att -> AttendanceStatus.valueOf(att.getStatus().name())).orElse(null))
+                    .updatedAt(Optional.ofNullable(attendance).map(AttendanceTeacher::getUpdatedAt).orElse(null))
                     .build();
             })
-            .sorted(Comparator.comparing(TeacherAttendanceSummary::getTeacherName)) // 이름순 정렬
+            .sorted(Comparator.comparing(TeacherAttendanceSummary::getTeacherName))
             .collect(Collectors.toList());
 
         // 3. 최종 응답 조합
@@ -195,46 +207,48 @@ public class AttendanceService {
     public List<StudentAttendanceResponse> findStudentAttendances(Long classRoomId, Integer schoolYear, LocalDate date) {
         List<StudentClass> studentClasses = studentClassRepository.findAllByClassRoomIdAndSchoolYear(classRoomId, schoolYear);
 
-        List<StudentAttendanceResponse> result = new ArrayList<>();
+        List<Attendance> attendances = attendanceRepository.findAllByStudentClassInAndDate(studentClasses, date);
+        Map<Long, Attendance> attendanceByStudentClassId = attendances.stream()
+            .collect(Collectors.toMap(att -> att.getStudentClass().getId(), att -> att));
 
-        for (StudentClass studentClass : studentClasses) {
-            Optional<Attendance> attendanceOpt = attendanceRepository.findByStudentClassIdAndDate(studentClass.getId(), date);
+        return studentClasses.stream()
+            .map(sc -> {
+                String status = Optional.ofNullable(attendanceByStudentClassId.get(sc.getId()))
+                    .map(a -> a.getStatus().name())
+                    .orElse("UNCHECKED");
 
-            String status = attendanceOpt
-                .map(attendance -> attendance.getStatus().name()) // 출석 있으면 상태
-                .orElse("UNCHECKED"); // 출석 기록 없으면 "미체크"
-
-            result.add(new StudentAttendanceResponse(
-                studentClass.getStudent().getId(),
-                studentClass.getStudent().getName(),
-                status
-            ));
-        }
-
-        return result;
+                return new StudentAttendanceResponse(
+                    sc.getStudent().getId(),
+                    sc.getStudent().getName(),
+                    status
+                );
+            })
+            .collect(Collectors.toList());
     }
 
     public List<StudentAttendanceResponse> findYearAttendances(int schoolYear, LocalDate date) {
         // 1) 해당 학년도 전체 학생반 조회
         List<StudentClass> all = studentClassRepository.findAllBySchoolYear(schoolYear);
 
-        // 2) 각 학생반마다 date 기준 출석 조회 & DTO 변환
-        List<StudentAttendanceResponse> result = new ArrayList<>();
-        for (StudentClass sc : all) {
-            Optional<Attendance> att = attendanceRepository
-                .findByStudentClassIdAndDate(sc.getId(), date);
+        // 2) N+1 해결을 위해 출석 정보 한번에 로드
+        List<Attendance> attendances = attendanceRepository.findAllByStudentClassInAndDate(all, date);
+        Map<Long, Attendance> attendanceByStudentClassId = attendances.stream()
+            .collect(Collectors.toMap(att -> att.getStudentClass().getId(), att -> att));
 
-            String status = att
-                .map(a -> a.getStatus().name())
-                .orElse("UNCHECKED");
+        // 3) 각 학생반마다 date 기준 출석 조회 & DTO 변환
+        return all.stream()
+            .map(sc -> {
+                String status = Optional.ofNullable(attendanceByStudentClassId.get(sc.getId()))
+                    .map(a -> a.getStatus().name())
+                    .orElse("UNCHECKED");
 
-            result.add(new StudentAttendanceResponse(
-                sc.getStudent().getId(),
-                sc.getStudent().getName(),
-                status
-            ));
-        }
-        return result;
+                return new StudentAttendanceResponse(
+                    sc.getStudent().getId(),
+                    sc.getStudent().getName(),
+                    status
+                );
+            })
+            .collect(Collectors.toList());
     }
 
     /**
@@ -253,12 +267,15 @@ public class AttendanceService {
         List<StudentClass> scList =
             studentClassRepository.findAllByClassRoom_IdAndSchoolYear(classRoomId, schoolYear);
 
-        // 3) 각 studentClass별로 attendance 조회 후 DTO 변환
+        // 3) N+1 해결을 위해 출석 정보 한번에 로드
+        List<Attendance> attendances = attendanceRepository.findAllByStudentClassInAndDate(scList, date);
+        Map<Long, Attendance> attendanceByStudentClassId = attendances.stream()
+            .collect(Collectors.toMap(att -> att.getStudentClass().getId(), att -> att));
+
+        // 4) 각 studentClass별로 attendance 조회 후 DTO 변환
         return scList.stream()
             .map(sc -> {
-                Optional<Attendance> opt = 
-                    attendanceRepository.findByStudentClassIdAndDate(sc.getId(), date);
-                String status = opt
+                String status = Optional.ofNullable(attendanceByStudentClassId.get(sc.getId()))
                     .map(a -> a.getStatus().name())
                     .orElse("UNCHECKED");
                 return new StudentAttendanceResponse(
@@ -311,22 +328,36 @@ public class AttendanceService {
         Map<ClassRoom, List<StudentClass>> studentClassesByRoom = studentClasses.stream()
             .collect(Collectors.groupingBy(StudentClass::getClassRoom));
 
-        // 3. 각 ClassRoom에 대해 ClassAttendanceResponse를 생성합니다.
+        // 3. N+1 해결을 위해 선생님 정보와 출석 정보를 한번에 로드
+        List<ClassRoom> classRooms = studentClassesByRoom.keySet().stream().toList();
+        List<TeacherClass> teacherClasses = teacherClassRepository.findAllBySchoolYearAndClassRoomIn(schoolYear, classRooms);
+        Map<Long, Teacher> teacherByClassRoomId = teacherClasses.stream()
+            .filter(tc -> tc.getTeacher().getDeletedAt() == null)
+            .collect(Collectors.toMap(
+                tc -> tc.getClassRoom().getId(),
+                TeacherClass::getTeacher
+            ));
+
+        List<Attendance> attendances = attendanceRepository.findAllByStudentClassInAndDate(studentClasses, date);
+        Map<Long, Attendance> attendanceByStudentClassId = attendances.stream()
+            .collect(Collectors.toMap(att -> att.getStudentClass().getId(), att -> att));
+
+
+        // 4. 각 ClassRoom에 대해 ClassAttendanceResponse를 생성합니다.
         return studentClassesByRoom.entrySet().stream()
             .map(entry -> {
                 ClassRoom classRoom = entry.getKey();
                 List<StudentClass> studentsInClass = entry.getValue();
 
-                // 4. 해당 ClassRoom의 선생님 이름을 찾습니다.
-                String teacherName = teacherClassRepository.findByClassRoomIdAndSchoolYear(classRoom.getId(), schoolYear)
-                    .map(teacherClass -> teacherClass.getTeacher().getName())
-                    .orElse("담당 선생님 없음"); // 담당 선생님이 없을 경우 기본값
+                // 5. 해당 ClassRoom의 선생님 이름을 찾습니다.
+                String teacherName = Optional.ofNullable(teacherByClassRoomId.get(classRoom.getId()))
+                    .map(Teacher::getName)
+                    .orElse("담당 선생님 없음");
 
-                // 5. 학생별 출석 상태를 가져옵니다.
+                // 6. 학생별 출석 상태를 가져옵니다.
                 List<StudentAttendanceStatusDto> studentAttendanceStatuses = studentsInClass.stream()
                     .map(sc -> {
-                        Optional<Attendance> attendanceOpt = attendanceRepository.findByStudentClassIdAndDate(sc.getId(), date);
-                        AttendanceStatus status = attendanceOpt
+                        AttendanceStatus status = Optional.ofNullable(attendanceByStudentClassId.get(sc.getId()))
                             .map(Attendance::getStatus)
                             .orElse(AttendanceStatus.UNCHECKED); // 출석 기록이 없으면 UNCHECKED
 
@@ -340,7 +371,7 @@ public class AttendanceService {
                     .sorted(Comparator.comparing(StudentAttendanceStatusDto::getStudentName))
                     .collect(Collectors.toList());
 
-                // 6. ClassAttendanceResponse 객체를 생성합니다.
+                // 7. ClassAttendanceResponse 객체를 생성합니다.
                 return new ClassAttendanceResponse(
                     classRoom.getId(),
                     classRoom.getName(),
