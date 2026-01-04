@@ -2,7 +2,9 @@ package com.jspark.pw3_attendant;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
+@EnableScheduling
 @SpringBootApplication
 public class Pw3AttendantApplication {
 
