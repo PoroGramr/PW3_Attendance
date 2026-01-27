@@ -17,18 +17,23 @@ public interface StudentClassRepository extends JpaRepository<StudentClass, Long
     // 반 + 연도 기준으로 모든 학생-반 매핑 조회
     List<StudentClass> findAllByClassRoomIdAndSchoolYear(Long classRoomId, Integer schoolYear);
 
-    @EntityGraph(attributePaths = {"student", "classRoom"})
+    @EntityGraph(attributePaths = { "student", "classRoom" })
     List<StudentClass> findAllBySchoolYear(Integer schoolYear);
 
-    @EntityGraph(attributePaths = {"student", "classRoom"})
+    @EntityGraph(attributePaths = { "student", "classRoom" })
     List<StudentClass> findAllByClassRoom_IdAndSchoolYear(Long classRoomId, Integer schoolYear);
 
     long countBySchoolYear(Integer schoolYear);
 
     long countByClassRoomIdAndSchoolYear(Long classRoomId, Integer schoolYear);
 
-    @EntityGraph(attributePaths = {"classRoom"})
+    @EntityGraph(attributePaths = { "classRoom" })
     List<StudentClass> findAllByStudent(Student student);
 
     boolean existsByStudentAndClassRoomAndSchoolYear(Student student, ClassRoom classRoom, Integer schoolYear);
+
+    long countByClassRoom_SchoolTypeAndClassRoom_GradeAndSchoolYear(
+            ClassRoom.SchoolType schoolType,
+            Integer grade,
+            Integer schoolYear);
 }

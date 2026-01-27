@@ -2,6 +2,7 @@ package com.jspark.pw3_attendant.repository.Attendance;
 
 import com.jspark.pw3_attendant.domain.Attendance.Attendance;
 import com.jspark.pw3_attendant.domain.Attendance.Attendance.AttendanceStatus;
+import com.jspark.pw3_attendant.domain.ClassRoom.ClassRoom;
 import com.jspark.pw3_attendant.domain.StudentClass.StudentClass;
 import java.time.LocalDate;
 import java.util.List;
@@ -68,4 +69,18 @@ public interface AttendanceRepository extends JpaRepository<Attendance, Long> {
                         @Param("startDate") LocalDate startDate,
                         @Param("endDate") LocalDate endDate,
                         @Param("statuses") List<AttendanceStatus> statuses);
+
+        @Query("SELECT COUNT(a) FROM Attendance a " +
+                        "JOIN a.studentClass sc " +
+                        "JOIN sc.classRoom cr " +
+                        "WHERE cr.schoolType = :schoolType " +
+                        "AND cr.grade = :grade " +
+                        "AND a.date = :date " +
+                        "AND sc.schoolYear = :schoolYear " +
+                        "AND a.status IN ('ATTEND', 'LATE')")
+        long countByGradeAndDateAndStatusIn(
+                        @Param("schoolType") ClassRoom.SchoolType schoolType,
+                        @Param("grade") Integer grade,
+                        @Param("date") LocalDate date,
+                        @Param("schoolYear") Integer schoolYear);
 }
