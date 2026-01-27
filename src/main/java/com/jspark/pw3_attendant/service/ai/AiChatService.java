@@ -1,0 +1,427 @@
+package com.jspark.pw3_attendant.service.ai;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.jspark.pw3_attendant.service.Attendance.AttendanceAnalysisService;
+import com.jspark.pw3_attendant.service.Attendance.dto.*;
+import com.jspark.pw3_attendant.service.ai.dto.IntentDetectionResponse;
+import com.jspark.pw3_attendant.service.ai.dto.QueryIntent;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.*;
+import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
+
+import java.time.LocalDate;
+import java.time.YearMonth;
+import java.util.*;
+
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class AiChatService {
+
+    private final AttendanceAnalysisService attendanceAnalysisService;
+    private final ObjectMapper objectMapper;
+    private final RestTemplate restTemplate = new RestTemplate();
+
+    @Value("${GEMINI_API_KEY}")
+    private String apiKey;
+
+    /**
+     * 사용자 질문에 대한 AI 답변 생성 (RAG 패턴)
+     */
+    public String chatWithAgent(String userQuestion) {
+        try {
+            // 1. 질문 의도 파악 (Retrieval - Intent Detection)
+            IntentDetectionResponse intentResponse = detectIntent(userQuestion);
+            QueryIntent intent = QueryIntent.valueOf(intentResponse.getIntent());
+            Map<String, Object> params = intentResponse.getParams();
+
+            log.info("Detected intent: {}, params: {}", intent, params);
+
+            // 2. 데이터 검색 (Retrieval - Data Fetching)
+            Object data = retrieveData(intent, params);
+            log.info("[DEBUG] Retrieved data - Type: {}, IsNull: {}",
+                    data != null ? data.getClass().getSimpleName() : "null",
+                    data == null);
+
+            // 3. 답변 생성 (Generation)
+            return generateAnswer(userQuestion, data, intent);
+
+        } catch (Exception e) {
+            log.error("Error processing chat request", e);
+            return "죄송합니다. 질문을 처리하는 중 오류가 발생했습니다. 다시 시도해주세요.";
+        }
+    }
+
+    /**
+     * Gemini API 직접 호출
+     */
+    private String callGeminiApi(String prompt) {
+        try {
+            String url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key="
+                    + apiKey;
+
+            Map<String, Object> requestBody = new HashMap<>();
+            List<Map<String, Object>> contents = new ArrayList<>();
+            Map<String, Object> content = new HashMap<>();
+            List<Map<String, String>> parts = new ArrayList<>();
+            Map<String, String> part = new HashMap<>();
+            part.put("text", prompt);
+            parts.add(part);
+            content.put("parts", parts);
+            contents.add(content);
+            requestBody.put("contents", contents);
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+
+            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
+
+            ResponseEntity<Map> response = restTemplate.exchange(url, HttpMethod.POST, entity, Map.class);
+
+            if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
+                Map<String, Object> body = response.getBody();
+                List<Map<String, Object>> candidates = (List<Map<String, Object>>) body.get("candidates");
+                if (candidates != null && !candidates.isEmpty()) {
+                    Map<String, Object> candidate = candidates.get(0);
+                    Map<String, Object> contentMap = (Map<String, Object>) candidate.get("content");
+                    List<Map<String, String>> partsList = (List<Map<String, String>>) contentMap.get("parts");
+                    if (partsList != null && !partsList.isEmpty()) {
+                        return partsList.get(0).get("text");
+                    }
+                }
+            }
+
+            return null;
+        } catch (Exception e) {
+            log.error("Error calling Gemini API", e);
+            return null;
+        }
+    }
+
+    /**
+     * LLM을 사용하여 질문 의도 파악
+     */
+    private IntentDetectionResponse detectIntent(String question) {
+        LocalDate today = LocalDate.now();
+        YearMonth currentMonth = YearMonth.now();
+
+        String intentPrompt = String.format("""
+                당신은 출석 관리 시스템의 질문 분석 전문가입니다.
+                사용자의 질문을 분석하여 의도와 파라미터를 JSON 형식으로 반환하세요.
+
+                **중요: 오늘 날짜는 %s이고, 현재 연도는 %d년, 현재 월은 %d월입니다.**
+
+                지원하는 의도:
+                - LIST_FULL_ABSENCE_STUDENTS: 특정 기간 한 번도 출석하지 않은 학생 ("이번 달 한 번도 안 나온", "장기 결석자")
+                - FIND_CONSECUTIVE_ABSENCE_STUDENTS: N주 연속 결석 ("3주 연속 결석", "계속 안 나온")
+                - FIND_FREQUENT_LATE_STUDENTS: 지각 빈도 높은 학생 ("지각이 잦은", "지각 많은")
+                - GET_AVERAGE_ATTENDANCE_RATE_BY_GRADE: 학년별 평균 출석률 ("학년별 출석률", "학년별 평균")
+                - FIND_STUDENTS_NEEDING_CARE: 관리가 필요한 학생 ("관리가 필요한", "위험 학생", "문제 학생")
+                - FIND_NEW_CONSECUTIVE_ATTENDEES: 신입생 정착 현황 ("신입인데 연속 출석", "신입생 정착")
+
+                파라미터 추출 규칙:
+                - "이번 달": startDate는 %s, endDate는 %s
+                - "지난 달": 이전 달의 1일과 마지막 날
+                - "N주": weeks 파라미터로 추출
+                - "N명": topN 파라미터로 추출
+                - 학년도는 현재 연도 %d로 설정
+
+                사용자 질문: %s
+
+                응답 형식 (반드시 JSON만 반환):
+                {
+                  "intent": "의도명",
+                  "params": {
+                    "weeks": 3,
+                    "startDate": "%s",
+                    "endDate": "%s",
+                    "topN": 10,
+                    "schoolYear": %d
+                  }
+                }
+                """,
+                today,
+                today.getYear(),
+                today.getMonthValue(),
+                currentMonth.atDay(1),
+                currentMonth.atEndOfMonth(),
+                today.getYear(),
+                question,
+                currentMonth.atDay(1),
+                currentMonth.atEndOfMonth(),
+                today.getYear());
+
+        try {
+            String response = callGeminiApi(intentPrompt);
+
+            if (response != null) {
+                log.info("Intent detection response: {}", response);
+
+                // JSON 추출 (```json 태그 제거)
+                String jsonResponse = response.trim();
+                if (jsonResponse.startsWith("```json")) {
+                    jsonResponse = jsonResponse.substring(7);
+                }
+                if (jsonResponse.endsWith("```")) {
+                    jsonResponse = jsonResponse.substring(0, jsonResponse.length() - 3);
+                }
+                jsonResponse = jsonResponse.trim();
+
+                return objectMapper.readValue(jsonResponse, IntentDetectionResponse.class);
+            }
+
+            return new IntentDetectionResponse("UNKNOWN", new HashMap<>());
+
+        } catch (Exception e) {
+            log.error("Error detecting intent", e);
+            return new IntentDetectionResponse("UNKNOWN", new HashMap<>());
+        }
+    }
+
+    /**
+     * 의도에 따라 데이터 검색
+     */
+    private Object retrieveData(QueryIntent intent, Map<String, Object> params) {
+        // 기본값: 이번 달
+        YearMonth currentMonth = YearMonth.now();
+        LocalDate defaultStartDate = currentMonth.atDay(1);
+        LocalDate defaultEndDate = currentMonth.atEndOfMonth();
+
+        LocalDate startDate = parseDate(params.get("startDate"), defaultStartDate);
+        LocalDate endDate = parseDate(params.get("endDate"), defaultEndDate);
+        Integer schoolYear = parseInteger(params.get("schoolYear"), LocalDate.now().getYear());
+        Integer weeks = parseInteger(params.get("weeks"), 3);
+        Integer topN = parseInteger(params.get("topN"), 10);
+
+        log.info("Retrieving data with: startDate={}, endDate={}, schoolYear={}, weeks={}, topN={}",
+                startDate, endDate, schoolYear, weeks, topN);
+
+        return switch (intent) {
+            case LIST_FULL_ABSENCE_STUDENTS ->
+                attendanceAnalysisService.findLongTermAbsentees(startDate, endDate);
+
+            case FIND_CONSECUTIVE_ABSENCE_STUDENTS ->
+                attendanceAnalysisService.findConsecutiveAbsenceStudents(weeks);
+
+            case FIND_NEW_CONSECUTIVE_ATTENDEES ->
+                attendanceAnalysisService.findNewConsecutiveAttendees(weeks, 3);
+
+            case GET_AVERAGE_ATTENDANCE_RATE_BY_GRADE ->
+                attendanceAnalysisService.getAverageAttendanceRateByGrade(startDate, endDate, schoolYear);
+
+            case FIND_STUDENTS_NEEDING_CARE ->
+                attendanceAnalysisService.findStudentsNeedingCare(startDate, endDate, schoolYear);
+
+            case FIND_FREQUENT_LATE_STUDENTS ->
+                attendanceAnalysisService.findFrequentLateStudents(topN, startDate, endDate);
+
+            default -> "데이터를 찾을 수 없습니다.";
+        };
+    }
+
+    /**
+     * LLM을 사용하여 자연어 답변 생성
+     */
+    private String generateAnswer(String question, Object data, QueryIntent intent) {
+        String dataString = formatData(data, intent);
+
+        log.info("[DEBUG] Formatted data string - Length: {}, Preview: {}",
+                dataString.length(),
+                dataString.length() > 200 ? dataString.substring(0, 200) + "..." : dataString);
+
+        String answerPrompt = """
+                당신은 친절한 출석 관리 조교입니다.
+                주어진 데이터를 바탕으로 사용자의 질문에 한국어로 자연스럽게 답변하세요.
+
+                # 데이터:
+                {data}
+
+                # 사용자 질문:
+                {question}
+
+                # 답변 가이드:
+                - 구체적인 숫자와 이름을 포함하세요
+                - 존댓말을 사용하세요
+                - 데이터가 비어있으면 "해당하는 학생이 없습니다"라고 답변하세요
+                - 필요시 조언이나 제안을 추가하세요
+                - 간결하고 명확하게 답변하세요
+                """;
+
+        try {
+            String response = callGeminiApi(answerPrompt
+                    .replace("{data}", dataString)
+                    .replace("{question}", question));
+            return response != null ? response : generateFallbackAnswer(dataString, intent);
+
+        } catch (Exception e) {
+            log.warn("Gemini API failed, using fallback response: {}", e.getMessage());
+            return generateFallbackAnswer(dataString, intent);
+        }
+    }
+
+    /**
+     * API 실패 시 템플릿 기반 답변 생성
+     */
+    private String generateFallbackAnswer(String dataString, QueryIntent intent) {
+        String prefix = switch (intent) {
+            case LIST_FULL_ABSENCE_STUDENTS ->
+                "📋 **이번 달 한 번도 출석하지 않은 학생 목록**\n\n";
+            case FIND_CONSECUTIVE_ABSENCE_STUDENTS ->
+                "📋 **연속으로 결석한 학생 목록**\n\n";
+            case FIND_FREQUENT_LATE_STUDENTS ->
+                "📋 **지각이 잦은 학생 목록**\n\n";
+            case GET_AVERAGE_ATTENDANCE_RATE_BY_GRADE ->
+                "📊 **학년별 평균 출석률**\n\n";
+            case FIND_STUDENTS_NEEDING_CARE ->
+                "⚠️ **관리가 필요한 학생 목록**\n\n";
+            case FIND_NEW_CONSECUTIVE_ATTENDEES ->
+                "✅ **신입생 중 연속 출석한 학생 목록**\n\n";
+            default ->
+                "📋 **조회 결과**\n\n";
+        };
+
+        return prefix + dataString + "\n\n💡 더 궁금한 사항이 있으시면 언제든 질문해주세요!";
+
+    }
+
+    /**
+     * 데이터를 문자열로 포맷팅
+     */
+    private String formatData(Object data, QueryIntent intent) {
+        log.info("[DEBUG] formatData - Intent: {}, Data null: {}, Data type: {}",
+                intent,
+                data == null,
+                data != null ? data.getClass().getName() : "null");
+
+        if (data == null) {
+            return "데이터 없음";
+        }
+
+        try {
+            return switch (intent) {
+                case LIST_FULL_ABSENCE_STUDENTS, FIND_CONSECUTIVE_ABSENCE_STUDENTS, FIND_NEW_CONSECUTIVE_ATTENDEES -> {
+                    @SuppressWarnings("unchecked")
+                    List<AbsenteeResponse> students = (List<AbsenteeResponse>) data;
+
+                    log.info("[DEBUG] After cast - List size: {}, isEmpty: {}", students.size(), students.isEmpty());
+                    if (!students.isEmpty()) {
+                        log.info("[DEBUG] First element: {}", students.get(0));
+                    }
+
+                    if (students.isEmpty()) {
+                        yield "해당하는 학생이 없습니다.";
+                    }
+                    StringBuilder sb = new StringBuilder();
+                    sb.append("총 ").append(students.size()).append("명:\n");
+                    log.info("[DEBUG] Building response string for {} students", students.size());
+                    for (int i = 0; i < students.size(); i++) {
+                        AbsenteeResponse student = students.get(i);
+                        sb.append((i + 1)).append(". ")
+                                .append(student.getStudentName())
+                                .append(" (").append(student.getClassName()).append(")\n");
+                    }
+                    yield sb.toString();
+                }
+
+                case GET_AVERAGE_ATTENDANCE_RATE_BY_GRADE -> {
+                    @SuppressWarnings("unchecked")
+                    List<GradeAttendanceRateDto> rates = (List<GradeAttendanceRateDto>) data;
+                    if (rates.isEmpty()) {
+                        yield "출석률 데이터가 없습니다.";
+                    }
+                    StringBuilder sb = new StringBuilder();
+                    for (GradeAttendanceRateDto rate : rates) {
+                        sb.append("- ").append(rate.getGradeName())
+                                .append(": ").append(rate.getAttendanceRate()).append("%")
+                                .append(" (").append(rate.getAttendedCount())
+                                .append("/").append(rate.getTotalStudents()).append("명)\n");
+                    }
+                    yield sb.toString();
+                }
+
+                case FIND_STUDENTS_NEEDING_CARE -> {
+                    @SuppressWarnings("unchecked")
+                    List<StudentNeedsCareDto> students = (List<StudentNeedsCareDto>) data;
+                    if (students.isEmpty()) {
+                        yield "관리가 필요한 학생이 없습니다.";
+                    }
+                    StringBuilder sb = new StringBuilder();
+                    sb.append("총 ").append(students.size()).append("명:\n");
+                    for (int i = 0; i < students.size(); i++) {
+                        StudentNeedsCareDto student = students.get(i);
+                        sb.append((i + 1)).append(". ")
+                                .append(student.getStudentName())
+                                .append(" (").append(student.getClassName()).append(")")
+                                .append(" - 결석: ").append(student.getAbsenceCount()).append("회")
+                                .append(", 지각: ").append(student.getLateCount()).append("회\n");
+                    }
+                    yield sb.toString();
+                }
+
+                case FIND_FREQUENT_LATE_STUDENTS -> {
+                    @SuppressWarnings("unchecked")
+                    List<StudentLatenessDto> students = (List<StudentLatenessDto>) data;
+                    if (students.isEmpty()) {
+                        yield "지각 기록이 없습니다.";
+                    }
+                    StringBuilder sb = new StringBuilder();
+                    sb.append("총 ").append(students.size()).append("명:\n");
+                    for (int i = 0; i < students.size(); i++) {
+                        StudentLatenessDto student = students.get(i);
+                        sb.append((i + 1)).append(". ")
+                                .append(student.getStudentName())
+                                .append(" (").append(student.getClassName()).append(")")
+                                .append(" - 지각: ").append(student.getLateCount()).append("회\n");
+                    }
+                    yield sb.toString();
+                }
+
+                default -> data.toString();
+            };
+        } catch (Exception e) {
+            log.error("Error formatting data", e);
+            return data.toString();
+        }
+    }
+
+    /**
+     * 파라미터에서 날짜 파싱
+     */
+    private LocalDate parseDate(Object dateObj, LocalDate defaultValue) {
+        if (dateObj == null) {
+            return defaultValue;
+        }
+        if (dateObj instanceof String) {
+            try {
+                return LocalDate.parse((String) dateObj);
+            } catch (Exception e) {
+                log.warn("Failed to parse date: {}, using default", dateObj);
+                return defaultValue;
+            }
+        }
+        return defaultValue;
+    }
+
+    /**
+     * 파라미터에서 정수 파싱
+     */
+    private Integer parseInteger(Object intObj, Integer defaultValue) {
+        if (intObj == null) {
+            return defaultValue;
+        }
+        if (intObj instanceof Integer) {
+            return (Integer) intObj;
+        }
+        if (intObj instanceof String) {
+            try {
+                return Integer.parseInt((String) intObj);
+            } catch (NumberFormatException e) {
+                return defaultValue;
+            }
+        }
+        return defaultValue;
+    }
+}

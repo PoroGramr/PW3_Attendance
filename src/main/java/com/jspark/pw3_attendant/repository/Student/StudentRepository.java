@@ -2,6 +2,7 @@ package com.jspark.pw3_attendant.repository.Student;
 
 
 import com.jspark.pw3_attendant.domain.Student.Student;
+import java.time.LocalDateTime;
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -14,4 +15,6 @@ public interface StudentRepository extends JpaRepository<Student, Long> {
 
     @Query("SELECT s FROM Student s WHERE FUNCTION('YEAR', s.createdAt) = :year")
     List<Student> findAllByYear(@Param("year") int year);
+
+    List<Student> findAllByCreatedAtAfter(LocalDateTime dateTime);
 }
