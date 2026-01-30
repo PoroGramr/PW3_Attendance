@@ -60,7 +60,7 @@ public class AiChatService {
      */
     private String callGeminiApi(String prompt) {
         try {
-            String url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key="
+            String url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key="
                     + apiKey;
 
             Map<String, Object> requestBody = new HashMap<>();
@@ -234,27 +234,63 @@ public class AiChatService {
 
         String answerPrompt = """
                 당신은 친절한 출석 관리 조교입니다.
-                주어진 데이터를 바탕으로 사용자의 질문에 한국어로 자연스럽게 답변하세요.
+                아래 제공된 데이터를 **반드시** 사용하여 사용자의 질문에 답변하세요.
+                제공되는 데이터는 해당 질문에 대한 쿼리 조회 결과 데이터입니다.
+                해당 응답 데이터를 바탕으로 답변해주세요.
 
-                # 데이터:
+                **중요: 아래 데이터는 이미 조회된 실제 결과입니다. "데이터가 없다"거나 "파악할 수 없다"는 답변은 절대 하지 마세요.**
+
+                # 조회된 데이터:
                 {data}
 
                 # 사용자 질문:
                 {question}
 
-                # 답변 가이드:
-                - 구체적인 숫자와 이름을 포함하세요
-                - 존댓말을 사용하세요
-                - 데이터가 비어있으면 "해당하는 학생이 없습니다"라고 답변하세요
-                - 필요시 조언이나 제안을 추가하세요
-                - 간결하고 명확하게 답변하세요
+                # 답변 예시:
+                만약 데이터가 "총 3명:\\n1. 김철수 (중 1-1)\\n2. 이영희 (중 2-2)\\n3. 박민수 (고 1-3)"라면,
+
+                답변은 다음과 같이 해야 합니다:
+                "신입생 중 3주 연속 출석한 학생은 총 3명입니다:
+
+                1. 김철수 (중 1-1)
+                2. 이영희 (중 2-2)
+                3. 박민수 (고 1-3)
+
+                이 학생들은 꾸준히 출석하고 있어 정착이 잘 되고 있습니다!"
+
+                # 답변 규칙:
+                1. 위 데이터에 학생 목록이 있다면, 그대로 사용하여 답변하세요
+                2. 학생 이름과 반 정보를 모두 포함하세요
+                3. 존댓말을 사용하세요
+                4. "총 N명"과 같이 구체적인 숫자를 언급하세요
+                5. 데이터에 "해당하는 학생이 없습니다"라고 명시된 경우에만 그렇게 답변하세요
+                6. 간결하고 명확하게 답변하세요
+
+                **다시 한 번 강조: 위 데이터는 실제 조회 결과이므로, 반드시 이 데이터를 기반으로 답변하세요.**
                 """;
 
         try {
-            String response = callGeminiApi(answerPrompt
+            String finalPrompt = answerPrompt
                     .replace("{data}", dataString)
-                    .replace("{question}", question));
-            return response != null ? response : generateFallbackAnswer(dataString, intent);
+                    .replace("{question}", question);
+
+            log.info("[DEBUG] Final prompt sent to Gemini - Length: {}, Preview: {}",
+                    finalPrompt.length(),
+                    finalPrompt.length() > 500 ? finalPrompt.substring(0, 500) + "..." : finalPrompt);
+
+            String response = callGeminiApi(finalPrompt);
+
+            log.info("[DEBUG] Gemini API response - IsNull: {}, Length: {}",
+                    response == null,
+                    response != null ? response.length() : 0);
+
+            if (response != null) {
+                log.info("[DEBUG] Using Gemini response");
+                return response;
+            } else {
+                log.warn("[DEBUG] Gemini response is null, using fallback");
+                return generateFallbackAnswer(dataString, intent);
+            }
 
         } catch (Exception e) {
             log.warn("Gemini API failed, using fallback response: {}", e.getMessage());
@@ -302,7 +338,7 @@ public class AiChatService {
 
         try {
             return switch (intent) {
-                case LIST_FULL_ABSENCE_STUDENTS, FIND_CONSECUTIVE_ABSENCE_STUDENTS, FIND_NEW_CONSECUTIVE_ATTENDEES -> {
+                case LIST_FULL_ABSENCE_STUDENTS, FIND_CONSECUTIVE_ABSENCE_STUDENTS -> {
                     @SuppressWarnings("unchecked")
                     List<AbsenteeResponse> students = (List<AbsenteeResponse>) data;
 
@@ -319,6 +355,24 @@ public class AiChatService {
                     log.info("[DEBUG] Building response string for {} students", students.size());
                     for (int i = 0; i < students.size(); i++) {
                         AbsenteeResponse student = students.get(i);
+                        sb.append((i + 1)).append(". ")
+                                .append(student.getStudentName())
+                                .append(" (").append(student.getClassName()).append(")\n");
+                    }
+                    yield sb.toString();
+                }
+
+                case FIND_NEW_CONSECUTIVE_ATTENDEES -> {
+                    @SuppressWarnings("unchecked")
+                    List<NewStudentAttendeeResponse> students = (List<NewStudentAttendeeResponse>) data;
+
+                    if (students.isEmpty()) {
+                        yield "해당하는 학생이 없습니다.";
+                    }
+                    StringBuilder sb = new StringBuilder();
+                    sb.append("총 ").append(students.size()).append("명:\n");
+                    for (int i = 0; i < students.size(); i++) {
+                        NewStudentAttendeeResponse student = students.get(i);
                         sb.append((i + 1)).append(". ")
                                 .append(student.getStudentName())
                                 .append(" (").append(student.getClassName()).append(")\n");
