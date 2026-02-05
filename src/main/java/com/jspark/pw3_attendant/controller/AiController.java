@@ -1,7 +1,7 @@
 package com.jspark.pw3_attendant.controller;
 
-import com.jspark.pw3_attendant.controller.dto.AiChatRequest;
-import com.jspark.pw3_attendant.controller.dto.AiChatResponse;
+import com.jspark.pw3_attendant.service.ai.dto.AiChatRequest;
+import com.jspark.pw3_attendant.service.ai.dto.AiChatResponse;
 import com.jspark.pw3_attendant.service.ai.AiChatService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
