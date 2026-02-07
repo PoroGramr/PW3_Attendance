@@ -83,4 +83,35 @@ public interface AttendanceRepository extends JpaRepository<Attendance, Long> {
                         @Param("grade") Integer grade,
                         @Param("date") LocalDate date,
                         @Param("schoolYear") Integer schoolYear);
+
+        // 배치 조회: 여러 일요일에 대한 학년별 출석 통계 (N+1 문제 해결)
+        @Query("""
+                        SELECT
+                            cr.schoolType as schoolType,
+                            cr.grade as grade,
+                            a.date as date,
+                            sc.schoolYear as schoolYear,
+                            COUNT(a.id) as attendedCount
+                        FROM Attendance a
+                        JOIN a.studentClass sc
+                        JOIN sc.classRoom cr
+                        WHERE a.date IN :sundays
+                          AND a.status IN (com.jspark.pw3_attendant.domain.Attendance.Attendance.AttendanceStatus.ATTEND,
+                                           com.jspark.pw3_attendant.domain.Attendance.Attendance.AttendanceStatus.LATE)
+                        GROUP BY cr.schoolType, cr.grade, a.date, sc.schoolYear
+                        """)
+        List<GradeAttendanceProjection> findGradeAttendanceStats(@Param("sundays") List<LocalDate> sundays);
+
+        // Projection 인터페이스
+        interface GradeAttendanceProjection {
+                ClassRoom.SchoolType getSchoolType();
+
+                Integer getGrade();
+
+                LocalDate getDate();
+
+                Integer getSchoolYear();
+
+                Long getAttendedCount();
+        }
 }

@@ -7,6 +7,8 @@ import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 @Repository
@@ -36,4 +38,31 @@ public interface StudentClassRepository extends JpaRepository<StudentClass, Long
             ClassRoom.SchoolType schoolType,
             Integer grade,
             Integer schoolYear);
+
+    // 배치 조회: 여러 학년도에 대한 학년별 학생 수 (N+1 문제 해결)
+    @Query("""
+            SELECT
+                cr.schoolType as schoolType,
+                cr.grade as grade,
+                sc.schoolYear as schoolYear,
+                COUNT(sc.id) as totalCount
+            FROM StudentClass sc
+            JOIN sc.classRoom cr
+            WHERE sc.schoolYear IN :schoolYears
+            GROUP BY cr.schoolType, cr.grade, sc.schoolYear
+            """)
+    List<GradeStudentCountProjection> findGradeStudentCounts(@Param("schoolYears") List<Integer> schoolYears);
+
+    // Projection 인터페이스
+    interface GradeStudentCountProjection {
+        ClassRoom.SchoolType getSchoolType();
+
+        Integer getGrade();
+
+        Integer getSchoolYear();
+
+        Long getTotalCount();
+    }
+
+    Optional<StudentClass> findTopByStudentIdOrderBySchoolYearDesc(Long studentId);
 }
