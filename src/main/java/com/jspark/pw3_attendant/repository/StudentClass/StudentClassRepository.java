@@ -65,4 +65,9 @@ public interface StudentClassRepository extends JpaRepository<StudentClass, Long
     }
 
     Optional<StudentClass> findTopByStudentIdOrderBySchoolYearDesc(Long studentId);
+
+    // N+1 방지: ClassRoom을 함께 조회
+    @EntityGraph(attributePaths = { "classRoom" })
+    @Query("SELECT sc FROM StudentClass sc")
+    List<StudentClass> findAllWithClassRoom();
 }
