@@ -73,6 +73,6 @@ public class BirthdayService {
 
     private int getCurrentSchoolYear() {
         LocalDate now = LocalDate.now();
-        return now.getMonthValue() >= 3 ? now.getYear() : now.getYear() - 1;
+        return now.getYear();
     }
 }
