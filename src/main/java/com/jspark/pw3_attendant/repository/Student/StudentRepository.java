@@ -1,6 +1,5 @@
 package com.jspark.pw3_attendant.repository.Student;
 
-
 import com.jspark.pw3_attendant.domain.Student.Student;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -20,4 +19,10 @@ public interface StudentRepository extends JpaRepository<Student, Long> {
 
     @Query("SELECT s FROM Student s WHERE MONTH(s.birth) = :month AND s.deletedAt IS NULL ORDER BY DAY(s.birth)")
     List<Student> findByBirthMonth(@Param("month") int month);
+
+    // 재학생만 조회 (졸업하지 않은 학생)
+    List<Student> findAllByIsGraduatedFalse();
+
+    // 졸업생만 조회
+    List<Student> findAllByIsGraduatedTrue();
 }

@@ -63,7 +63,8 @@ public class StudentController {
         try {
             return studentService.findById(id);
         } catch (IllegalArgumentException e) {
-            throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "학생을 찾을 수 없습니다.");
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.NOT_FOUND, "학생을 찾을 수 없습니다.");
         }
     }
 
@@ -71,8 +72,14 @@ public class StudentController {
      * 모든 학생 조회
      */
     @GetMapping
-    @Operation(summary = "학생 전체 조회")
+    @Operation(summary = "학생 전체 조회", description = "졸업생 제외")
     public List<StudentResponse> getAllStudents() {
+        return studentService.findAllWithoutGraduated();
+    }
+
+    @GetMapping("/with-graduated")
+    @Operation(summary = "졸업생 포함 학생 전체 조회")
+    public List<StudentResponse> getAllStudentsWithGraduated() {
         return studentService.findAll();
     }
 
@@ -92,4 +99,3 @@ public class StudentController {
         return studentService.findStudentsByYearGroupByMonth(year);
     }
 }
-

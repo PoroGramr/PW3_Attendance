@@ -55,6 +55,10 @@ public class Student extends BaseEntity {
         this.memo = memo;
     }
 
+    public void setIsGraduated(Boolean isGraduated) {
+        this.isGraduated = isGraduated;
+    }
+
     @Column(nullable = false)
     private String name;
 
@@ -71,6 +75,9 @@ public class Student extends BaseEntity {
     private String school;
 
     private String memo;
+
+    @Column(nullable = false)
+    private Boolean isGraduated = false;
 
     @Column
     private LocalDateTime deletedAt;
