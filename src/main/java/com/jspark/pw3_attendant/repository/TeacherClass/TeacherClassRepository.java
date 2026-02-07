@@ -21,4 +21,8 @@ public interface TeacherClassRepository extends JpaRepository<TeacherClass, Long
 
     @EntityGraph(attributePaths = { "teacher", "classRoom" })
     List<TeacherClass> findAllBySchoolYearAndClassRoomIn(Integer schoolYear, List<ClassRoom> classRooms);
+
+    @EntityGraph(attributePaths = { "teacher", "classRoom" })
+    @org.springframework.data.jpa.repository.Query("SELECT tc FROM TeacherClass tc")
+    List<TeacherClass> findAllWithTeacherAndClassRoom();
 }
