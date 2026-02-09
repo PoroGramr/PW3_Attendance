@@ -17,7 +17,7 @@ public interface StudentRepository extends JpaRepository<Student, Long> {
 
     List<Student> findAllByCreatedAtAfter(LocalDateTime dateTime);
 
-    @Query("SELECT s FROM Student s WHERE MONTH(s.birth) = :month AND s.deletedAt IS NULL ORDER BY DAY(s.birth)")
+    @Query("SELECT s FROM Student s WHERE MONTH(s.birth) = :month AND s.deletedAt IS NULL AND NOT (MONTH(s.birth) = 1 AND DAY(s.birth) = 1) ORDER BY DAY(s.birth)")
     List<Student> findByBirthMonth(@Param("month") int month);
 
     // 재학생만 조회 (졸업하지 않은 학생)

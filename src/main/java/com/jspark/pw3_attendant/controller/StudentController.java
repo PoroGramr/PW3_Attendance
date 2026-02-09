@@ -33,6 +33,13 @@ public class StudentController {
         return StudentResponse.from(savedStudent, Map.of());
     }
 
+    @DeleteMapping("/graduated/{id}")
+    @Operation(summary = "학생 졸업")
+    public ResponseEntity<String> graduatedStudent(@PathVariable Long id) {
+        studentService.graduatedStudent(id);
+        return ResponseEntity.ok("학생이 졸업되었습니다.");
+    }
+
     @PostMapping("/{studentId}/send-qr")
     @Operation(summary = "학생에게 QR 코드 링크 발송")
     public ResponseEntity<String> sendQrCode(@PathVariable Long studentId) {

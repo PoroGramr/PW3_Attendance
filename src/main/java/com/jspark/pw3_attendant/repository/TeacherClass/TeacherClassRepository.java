@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
 @Repository
@@ -23,6 +24,6 @@ public interface TeacherClassRepository extends JpaRepository<TeacherClass, Long
     List<TeacherClass> findAllBySchoolYearAndClassRoomIn(Integer schoolYear, List<ClassRoom> classRooms);
 
     @EntityGraph(attributePaths = { "teacher", "classRoom" })
-    @org.springframework.data.jpa.repository.Query("SELECT tc FROM TeacherClass tc")
+    @Query("SELECT tc FROM TeacherClass tc")
     List<TeacherClass> findAllWithTeacherAndClassRoom();
 }
