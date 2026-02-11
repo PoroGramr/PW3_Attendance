@@ -1,4 +1,4 @@
-# 🎓 PW3 Attendance Management System
+# 🎓 온누리교회 중고등부 PW3 출석 관리 체계 
 
 [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.4.5-brightgreen.svg)](https://spring.io/projects/spring-boot)
 [![Java](https://img.shields.io/badge/Java-17-orange.svg)](https://www.oracle.com/java/)
@@ -16,10 +16,6 @@
 - [기술 스택](#-기술-스택)
 - [시스템 아키텍처](#-시스템-아키텍처)
 - [API 문서](#-api-문서)
-- [시작하기](#-시작하기)
-- [환경 변수 설정](#-환경-변수-설정)
-- [배포](#-배포)
-- [프로젝트 구조](#-프로젝트-구조)
 - [주요 도메인 모델](#-주요-도메인-모델)
 
 ---
