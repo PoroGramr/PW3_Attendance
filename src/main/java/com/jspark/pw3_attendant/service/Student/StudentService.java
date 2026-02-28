@@ -2,6 +2,7 @@ package com.jspark.pw3_attendant.service.Student;
 
 import com.jspark.pw3_attendant.domain.Student.Student;
 import com.jspark.pw3_attendant.domain.StudentClass.StudentClass;
+import com.jspark.pw3_attendant.repository.Attendance.AttendanceRepository;
 import com.jspark.pw3_attendant.repository.Student.StudentRepository;
 import com.jspark.pw3_attendant.repository.StudentClass.StudentClassRepository;
 import com.jspark.pw3_attendant.service.ClassRoom.dto.ClassRoomResponse;
@@ -25,6 +26,7 @@ public class StudentService {
 
         private final StudentRepository studentRepository;
         private final StudentClassRepository studentClassRepository;
+        private final AttendanceRepository attendanceRepository;
 
         @Transactional
         public Student save(StudentRequest request) {
@@ -68,7 +70,20 @@ public class StudentService {
 
         @Transactional
         public void deleteStudent(Long id) {
-                studentRepository.deleteById(id);
+                Student student = studentRepository.findById(id)
+                                .orElseThrow(() -> new IllegalArgumentException("학생을 찾을 수 없습니다."));
+
+                // 1. 해당 학생의 모든 반 매핑(StudentClass) 조회
+                List<StudentClass> studentClasses = studentClassRepository.findAllByStudent(student);
+
+                // 2. 각 반 매핑에 연결된 출석 기록(Attendance) 먼저 삭제
+                for (StudentClass studentClass : studentClasses) {
+                        attendanceRepository.deleteAll(
+                                        attendanceRepository.findAllByStudentClassId(studentClass.getId()));
+                }
+
+                // 3. 학생 삭제 (CascadeType.ALL로 StudentClass도 연쇄 삭제됨)
+                studentRepository.delete(student);
         }
 
         public StudentResponse findById(Long id) {
