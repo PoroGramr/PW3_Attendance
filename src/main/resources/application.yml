@@ -44,3 +44,7 @@ external:
 
 server:
   forward-headers-strategy: framework
+
+discord:
+  webhook:
+    url: ${DISCORD_WEBHOOK_URL}

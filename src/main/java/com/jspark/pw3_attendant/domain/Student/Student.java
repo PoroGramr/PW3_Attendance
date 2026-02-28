@@ -59,6 +59,10 @@ public class Student extends BaseEntity {
         this.isGraduated = isGraduated;
     }
 
+    public void setDeletedAt(LocalDateTime deletedAt) {
+        this.deletedAt = deletedAt;
+    }
+
     @Column(nullable = false)
     private String name;
 
