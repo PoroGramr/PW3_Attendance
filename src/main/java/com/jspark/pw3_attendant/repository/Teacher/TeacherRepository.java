@@ -1,6 +1,5 @@
 package com.jspark.pw3_attendant.repository.Teacher;
 
-
 import com.jspark.pw3_attendant.domain.Teacher.Teacher;
 import java.util.List;
 import java.util.Optional;
@@ -16,6 +15,6 @@ public interface TeacherRepository extends JpaRepository<Teacher, Long> {
 
     List<Teacher> findAllByDeletedAtIsNull();
 
-    @Query("SELECT t FROM Teacher t WHERE MONTH(t.birth) = :month ORDER BY DAY(t.birth)")
+    @Query("SELECT t FROM Teacher t WHERE MONTH(t.birth) = :month AND t.deletedAt IS NULL ORDER BY DAY(t.birth)")
     List<Teacher> findByBirthMonth(@Param("month") int month);
 }

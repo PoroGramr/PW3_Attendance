@@ -52,11 +52,17 @@ public class Teacher extends BaseEntity {
         this.phone = phone;
     }
 
-    public void setSex(Sex sex) { this.sex = sex;}
+    public void setSex(Sex sex) {
+        this.sex = sex;
+    }
 
-    public void setTeacherType(TeacherType teacherType) { this.teacherType = teacherType;}
+    public void setTeacherType(TeacherType teacherType) {
+        this.teacherType = teacherType;
+    }
 
-    public void setMemo(String memo){ this.memo = memo;}
+    public void setMemo(String memo) {
+        this.memo = memo;
+    }
 
     public enum Sex {
         MAN, WOMAN
@@ -65,5 +71,5 @@ public class Teacher extends BaseEntity {
     public enum TeacherType {
         PASTOR, TEACHER, HELPER,
     }
-    
+
 }
