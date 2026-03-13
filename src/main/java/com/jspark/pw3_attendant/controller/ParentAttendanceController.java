@@ -4,6 +4,7 @@ import com.jspark.pw3_attendant.service.Attendance.ParentAttendanceService;
 import com.jspark.pw3_attendant.service.Attendance.dto.ParentAttendanceRequest;
 import com.jspark.pw3_attendant.service.Attendance.dto.ParentAttendanceResponse;
 import com.jspark.pw3_attendant.service.Attendance.dto.ParentAttendanceStatsResponse;
+import com.jspark.pw3_attendant.service.Attendance.dto.ParentSingleAttendanceRequest;
 import io.swagger.v3.oas.annotations.Operation;
 import java.time.LocalDate;
 import java.util.List;
@@ -81,6 +82,38 @@ public class ParentAttendanceController {
             @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
         parentAttendanceService.delete(studentId, date);
         return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * 부 출석만 단독 생성·수정
+     * PUT /api/parent-attendance/{studentId}/{date}/father
+     */
+    @PutMapping("/{studentId}/{date}/father")
+    @Operation(summary = "부(아버지) 출석 단독 생성 및 수정")
+    public ResponseEntity<Void> upsertFatherAttendance(
+            @PathVariable Long studentId,
+            @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+            @RequestBody ParentSingleAttendanceRequest request) {
+        boolean created = parentAttendanceService.upsertFather(studentId, date, request);
+        return created
+                ? ResponseEntity.status(HttpStatus.CREATED).build()
+                : ResponseEntity.ok().build();
+    }
+
+    /**
+     * 모 출석만 단독 생성·수정
+     * PUT /api/parent-attendance/{studentId}/{date}/mother
+     */
+    @PutMapping("/{studentId}/{date}/mother")
+    @Operation(summary = "모(어머니) 출석 단독 생성 및 수정")
+    public ResponseEntity<Void> upsertMotherAttendance(
+            @PathVariable Long studentId,
+            @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+            @RequestBody ParentSingleAttendanceRequest request) {
+        boolean created = parentAttendanceService.upsertMother(studentId, date, request);
+        return created
+                ? ResponseEntity.status(HttpStatus.CREATED).build()
+                : ResponseEntity.ok().build();
     }
 
     /**

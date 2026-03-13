@@ -8,6 +8,7 @@ import com.jspark.pw3_attendant.repository.Student.StudentRepository;
 import com.jspark.pw3_attendant.service.Attendance.dto.ParentAttendanceRequest;
 import com.jspark.pw3_attendant.service.Attendance.dto.ParentAttendanceResponse;
 import com.jspark.pw3_attendant.service.Attendance.dto.ParentAttendanceStatsResponse;
+import com.jspark.pw3_attendant.service.Attendance.dto.ParentSingleAttendanceRequest;
 import java.time.LocalDate;
 import java.util.Comparator;
 import java.util.List;
@@ -45,6 +46,54 @@ public class ParentAttendanceService {
                                         pa.setDate(date);
                                         pa.setFatherStatus(fatherStatus);
                                         pa.setMotherStatus(motherStatus);
+                                        parentAttendanceRepository.save(pa);
+                                        return true; // 생성
+                                });
+        }
+
+        /** 부(아버지) 출석만 단독 생성·수정 */
+        @Transactional
+        public boolean upsertFather(Long studentId, LocalDate date, ParentSingleAttendanceRequest request) {
+                Student student = studentRepository.findById(studentId)
+                                .orElseThrow(() -> new IllegalArgumentException("학생을 찾을 수 없습니다. id=" + studentId));
+
+                ParentStatus status = parseStatus(request.getStatus(), "status");
+
+                return parentAttendanceRepository.findByStudentAndDate(student, date)
+                                .map(existing -> {
+                                        existing.setFatherStatus(status);
+                                        return false; // 수정
+                                })
+                                .orElseGet(() -> {
+                                        ParentAttendance pa = new ParentAttendance();
+                                        pa.setStudent(student);
+                                        pa.setDate(date);
+                                        pa.setFatherStatus(status);
+                                        pa.setMotherStatus(ParentStatus.ABSENT); // 모 기본값
+                                        parentAttendanceRepository.save(pa);
+                                        return true; // 생성
+                                });
+        }
+
+        /** 모(어머니) 출석만 단독 생성·수정 */
+        @Transactional
+        public boolean upsertMother(Long studentId, LocalDate date, ParentSingleAttendanceRequest request) {
+                Student student = studentRepository.findById(studentId)
+                                .orElseThrow(() -> new IllegalArgumentException("학생을 찾을 수 없습니다. id=" + studentId));
+
+                ParentStatus status = parseStatus(request.getStatus(), "status");
+
+                return parentAttendanceRepository.findByStudentAndDate(student, date)
+                                .map(existing -> {
+                                        existing.setMotherStatus(status);
+                                        return false; // 수정
+                                })
+                                .orElseGet(() -> {
+                                        ParentAttendance pa = new ParentAttendance();
+                                        pa.setStudent(student);
+                                        pa.setDate(date);
+                                        pa.setFatherStatus(ParentStatus.ABSENT); // 부 기본값
+                                        pa.setMotherStatus(status);
                                         parentAttendanceRepository.save(pa);
                                         return true; // 생성
                                 });
