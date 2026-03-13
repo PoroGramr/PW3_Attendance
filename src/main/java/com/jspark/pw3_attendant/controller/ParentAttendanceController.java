@@ -3,6 +3,7 @@ package com.jspark.pw3_attendant.controller;
 import com.jspark.pw3_attendant.service.Attendance.ParentAttendanceService;
 import com.jspark.pw3_attendant.service.Attendance.dto.ParentAttendanceRequest;
 import com.jspark.pw3_attendant.service.Attendance.dto.ParentAttendanceResponse;
+import com.jspark.pw3_attendant.service.Attendance.dto.ParentAttendanceStatsResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import java.time.LocalDate;
 import java.util.List;
@@ -80,5 +81,16 @@ public class ParentAttendanceController {
             @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
         parentAttendanceService.delete(studentId, date);
         return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * 부모 출석 통계
+     * GET /api/parent-attendance/date/{date}/stats
+     */
+    @GetMapping("/date/{date}/stats")
+    @Operation(summary = "특정 날짜 부/모 출석 현황 통계")
+    public ResponseEntity<ParentAttendanceStatsResponse> getParentAttendanceStats(
+            @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+        return ResponseEntity.ok(parentAttendanceService.getStats(date));
     }
 }

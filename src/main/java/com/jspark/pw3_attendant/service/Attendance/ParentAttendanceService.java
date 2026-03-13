@@ -7,6 +7,7 @@ import com.jspark.pw3_attendant.repository.Attendance.ParentAttendanceRepository
 import com.jspark.pw3_attendant.repository.Student.StudentRepository;
 import com.jspark.pw3_attendant.service.Attendance.dto.ParentAttendanceRequest;
 import com.jspark.pw3_attendant.service.Attendance.dto.ParentAttendanceResponse;
+import com.jspark.pw3_attendant.service.Attendance.dto.ParentAttendanceStatsResponse;
 import java.time.LocalDate;
 import java.util.Comparator;
 import java.util.List;
@@ -102,6 +103,34 @@ public class ParentAttendanceService {
                                 .orElseThrow(() -> new IllegalArgumentException("해당 날짜의 출석 기록이 없습니다."));
 
                 parentAttendanceRepository.delete(pa);
+        }
+
+        /**
+         * 특정 날짜 부모 출석 통계
+         * - totalStudents : 전체 재학생 수
+         * - studentsWithParent : 부/모 중 1명이라도 ATTEND인 학생 수
+         * - totalParentsAttended: 출석한 부모 총 인원 (부 ATTEND 수 + 모 ATTEND 수)
+         */
+        @Transactional(readOnly = true)
+        public ParentAttendanceStatsResponse getStats(LocalDate date) {
+                int totalStudents = (int) studentRepository.findAllByIsGraduatedFalse().size();
+
+                List<ParentAttendance> records = parentAttendanceRepository.findByDate(date);
+
+                int studentsWithParent = (int) records.stream()
+                                .filter(pa -> pa.getFatherStatus() == ParentStatus.ATTEND
+                                                || pa.getMotherStatus() == ParentStatus.ATTEND)
+                                .count();
+
+                int fatherCount = (int) records.stream()
+                                .filter(pa -> pa.getFatherStatus() == ParentStatus.ATTEND)
+                                .count();
+
+                int motherCount = (int) records.stream()
+                                .filter(pa -> pa.getMotherStatus() == ParentStatus.ATTEND)
+                                .count();
+
+                return new ParentAttendanceStatsResponse(totalStudents, studentsWithParent, fatherCount + motherCount);
         }
 
         /** 상태값 파싱 — 잘못된 값(UNCHECKED 등) 입력 시 명확한 에러 반환 */
