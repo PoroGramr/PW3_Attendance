@@ -1,0 +1,116 @@
+package com.jspark.pw3_attendant.service.Attendance;
+
+import com.jspark.pw3_attendant.domain.Attendance.ParentAttendance;
+import com.jspark.pw3_attendant.domain.Attendance.ParentAttendance.ParentStatus;
+import com.jspark.pw3_attendant.domain.Student.Student;
+import com.jspark.pw3_attendant.repository.Attendance.ParentAttendanceRepository;
+import com.jspark.pw3_attendant.repository.Student.StudentRepository;
+import com.jspark.pw3_attendant.service.Attendance.dto.ParentAttendanceRequest;
+import com.jspark.pw3_attendant.service.Attendance.dto.ParentAttendanceResponse;
+import java.time.LocalDate;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+@Service
+@RequiredArgsConstructor
+public class ParentAttendanceService {
+
+        private final ParentAttendanceRepository parentAttendanceRepository;
+        private final StudentRepository studentRepository;
+
+        /** 부/모 출석 생성 또는 수정 (upsert) */
+        @Transactional
+        public boolean upsert(Long studentId, LocalDate date, ParentAttendanceRequest request) {
+                Student student = studentRepository.findById(studentId)
+                                .orElseThrow(() -> new IllegalArgumentException("학생을 찾을 수 없습니다. id=" + studentId));
+
+                ParentStatus fatherStatus = parseStatus(request.getFatherStatus(), "fatherStatus");
+                ParentStatus motherStatus = parseStatus(request.getMotherStatus(), "motherStatus");
+
+                return parentAttendanceRepository.findByStudentAndDate(student, date)
+                                .map(existing -> {
+                                        existing.setFatherStatus(fatherStatus);
+                                        existing.setMotherStatus(motherStatus);
+                                        return false; // 수정
+                                })
+                                .orElseGet(() -> {
+                                        ParentAttendance pa = new ParentAttendance();
+                                        pa.setStudent(student);
+                                        pa.setDate(date);
+                                        pa.setFatherStatus(fatherStatus);
+                                        pa.setMotherStatus(motherStatus);
+                                        parentAttendanceRepository.save(pa);
+                                        return true; // 생성
+                                });
+        }
+
+        /** 특정 학생, 특정 날짜 출석 조회 */
+        @Transactional(readOnly = true)
+        public ParentAttendanceResponse getByStudentAndDate(Long studentId, LocalDate date) {
+                Student student = studentRepository.findById(studentId)
+                                .orElseThrow(() -> new IllegalArgumentException("학생을 찾을 수 없습니다. id=" + studentId));
+
+                ParentAttendance pa = parentAttendanceRepository.findByStudentAndDate(student, date)
+                                .orElseThrow(() -> new IllegalArgumentException("해당 날짜의 출석 기록이 없습니다."));
+
+                return ParentAttendanceResponse.from(pa);
+        }
+
+        /**
+         * 특정 날짜 전체 학생 출석 조회.
+         * 기록이 없는 학생은 포함하지 않음 (기록된 학생만 반환).
+         */
+        @Transactional(readOnly = true)
+        public List<ParentAttendanceResponse> getAllByDate(LocalDate date) {
+                return parentAttendanceRepository.findByDate(date).stream()
+                                .sorted(Comparator.comparing(pa -> pa.getStudent().getName()))
+                                .map(ParentAttendanceResponse::from)
+                                .collect(Collectors.toList());
+        }
+
+        /**
+         * 특정 날짜 전체 재학생 출석 조회.
+         * 기록이 없는 학생은 ABSENT/ABSENT 기본값으로 포함.
+         */
+        @Transactional(readOnly = true)
+        public List<ParentAttendanceResponse> getAllStudentsWithDefault(LocalDate date) {
+                List<Student> allStudents = studentRepository.findAllByIsGraduatedFalse();
+
+                Map<Long, ParentAttendance> recordMap = parentAttendanceRepository.findByDate(date).stream()
+                                .collect(Collectors.toMap(pa -> pa.getStudent().getId(), pa -> pa));
+
+                return allStudents.stream()
+                                .sorted(Comparator.comparing(Student::getName))
+                                .map(student -> recordMap.containsKey(student.getId())
+                                                ? ParentAttendanceResponse.from(recordMap.get(student.getId()))
+                                                : ParentAttendanceResponse.unchecked(student, date))
+                                .collect(Collectors.toList());
+        }
+
+        /** 특정 학생, 특정 날짜 출석 삭제 */
+        @Transactional
+        public void delete(Long studentId, LocalDate date) {
+                Student student = studentRepository.findById(studentId)
+                                .orElseThrow(() -> new IllegalArgumentException("학생을 찾을 수 없습니다. id=" + studentId));
+
+                ParentAttendance pa = parentAttendanceRepository.findByStudentAndDate(student, date)
+                                .orElseThrow(() -> new IllegalArgumentException("해당 날짜의 출석 기록이 없습니다."));
+
+                parentAttendanceRepository.delete(pa);
+        }
+
+        /** 상태값 파싱 — 잘못된 값(UNCHECKED 등) 입력 시 명확한 에러 반환 */
+        private ParentStatus parseStatus(String value, String fieldName) {
+                try {
+                        return ParentStatus.valueOf(value.toUpperCase());
+                } catch (IllegalArgumentException e) {
+                        throw new IllegalArgumentException(
+                                        fieldName + " 값이 올바르지 않습니다: '" + value + "'. 허용 값: ATTEND, ABSENT");
+                }
+        }
+}
