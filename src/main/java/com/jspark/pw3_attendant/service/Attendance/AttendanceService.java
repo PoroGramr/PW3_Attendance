@@ -23,6 +23,7 @@ import com.jspark.pw3_attendant.service.Attendance.dto.*;
 import java.util.*;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -41,6 +42,7 @@ public class AttendanceService {
         private final ClassRoomRepository classRoomRepository;
         private final TeacherRepository teacherRepository;
         private final AttendanceTeacherRepository attendanceTeacherRepository;
+        private final SimpMessagingTemplate messagingTemplate;
 
         public String getDailyAttendanceReport(LocalDate date) {
                 // 1. 총 출석 학생 수 계산
@@ -196,6 +198,12 @@ public class AttendanceService {
                                 .findByStudentClassIdAndDate(studentClass.getId(), LocalDate.now())
                                 .orElseThrow(() -> new IllegalStateException("출석 기록 생성에 실패했습니다."));
 
+                // WebSocket Broadcast
+                System.out.println("DEBUG: Broadcasting Student Attendance Update for " + studentQr.getStudent().getName());
+                messagingTemplate.convertAndSend("/topic/attendance",
+                                new AttendanceUpdateMessage("STUDENT", studentClass.getId(), studentQr.getStudent().getName(),
+                                                attendance.getStatus().name(), attendance.getUpdatedAt()));
+
                 return new ScanResponseDto(created ? "SUCCESS" : "DUPLICATE", studentQr.getStudent(), attendance);
         }
 
@@ -208,6 +216,13 @@ public class AttendanceService {
                 Optional<Attendance> opt = attendanceRepository.findByStudentClassIdAndDate(studentClassId, date);
                 if (opt.isPresent()) {
                         opt.get().setStatus(status);
+
+                        // WebSocket Broadcast
+                        System.out.println("DEBUG: Broadcasting Student Attendance Update (Update) for " + sc.getStudent().getName());
+                        messagingTemplate.convertAndSend("/topic/attendance",
+                                        new AttendanceUpdateMessage("STUDENT", sc.getId(), sc.getStudent().getName(), status.name(),
+                                                        opt.get().getUpdatedAt()));
+
                         return false; // 수정
                 }
 
@@ -217,6 +232,13 @@ public class AttendanceService {
                 att.setDate(date);
                 att.setStatus(status);
                 attendanceRepository.save(att);
+
+                // WebSocket Broadcast
+                System.out.println("DEBUG: Broadcasting Student Attendance Update (New) for " + sc.getStudent().getName());
+                messagingTemplate.convertAndSend("/topic/attendance",
+                                new AttendanceUpdateMessage("STUDENT", sc.getId(), sc.getStudent().getName(), status.name(),
+                                                att.getUpdatedAt()));
+
                 return true; // 생성
         }
 
@@ -526,5 +548,16 @@ public class AttendanceService {
                         this.schoolType = schoolType;
                         this.grade = grade;
                 }
+        }
+
+        @lombok.Data
+        @lombok.AllArgsConstructor
+        public static class AttendanceUpdateMessage {
+                private String type; // STUDENT, TEACHER, PARENT
+                private Long id; // studentClassId or teacherId or studentId
+                private String name;
+                private String status;
+                @com.fasterxml.jackson.annotation.JsonFormat(shape = com.fasterxml.jackson.annotation.JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss.SSS")
+                private java.time.LocalDateTime timestamp;
         }
 }

@@ -15,6 +15,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,6 +25,7 @@ public class ParentAttendanceService {
 
         private final ParentAttendanceRepository parentAttendanceRepository;
         private final StudentRepository studentRepository;
+        private final SimpMessagingTemplate messagingTemplate;
 
         /** 부/모 출석 생성 또는 수정 (upsert) */
         @Transactional
@@ -34,10 +36,11 @@ public class ParentAttendanceService {
                 ParentStatus fatherStatus = parseStatus(request.getFatherStatus(), "fatherStatus");
                 ParentStatus motherStatus = parseStatus(request.getMotherStatus(), "motherStatus");
 
-                return parentAttendanceRepository.findByStudentAndDate(student, date)
+                boolean created = parentAttendanceRepository.findByStudentAndDate(student, date)
                                 .map(existing -> {
                                         existing.setFatherStatus(fatherStatus);
                                         existing.setMotherStatus(motherStatus);
+                                        parentAttendanceRepository.save(existing); // 명시적 save
                                         return false; // 수정
                                 })
                                 .orElseGet(() -> {
@@ -49,6 +52,14 @@ public class ParentAttendanceService {
                                         parentAttendanceRepository.save(pa);
                                         return true; // 생성
                                 });
+
+                // WebSocket Broadcast
+                messagingTemplate.convertAndSend("/topic/attendance",
+                                new AttendanceService.AttendanceUpdateMessage("PARENT", student.getId(), student.getName(),
+                                                "F:" + fatherStatus.name() + "/M:" + motherStatus.name(),
+                                                java.time.LocalDateTime.now()));
+
+                return created;
         }
 
         /** 부(아버지) 출석만 단독 생성·수정 */
@@ -59,9 +70,10 @@ public class ParentAttendanceService {
 
                 ParentStatus status = parseStatus(request.getStatus(), "status");
 
-                return parentAttendanceRepository.findByStudentAndDate(student, date)
+                boolean created = parentAttendanceRepository.findByStudentAndDate(student, date)
                                 .map(existing -> {
                                         existing.setFatherStatus(status);
+                                        parentAttendanceRepository.save(existing); // 명시적 save
                                         return false; // 수정
                                 })
                                 .orElseGet(() -> {
@@ -73,6 +85,13 @@ public class ParentAttendanceService {
                                         parentAttendanceRepository.save(pa);
                                         return true; // 생성
                                 });
+
+                // WebSocket Broadcast
+                messagingTemplate.convertAndSend("/topic/attendance",
+                                new AttendanceService.AttendanceUpdateMessage("PARENT_FATHER", student.getId(), student.getName(),
+                                                status.name(), java.time.LocalDateTime.now()));
+
+                return created;
         }
 
         /** 모(어머니) 출석만 단독 생성·수정 */
@@ -83,9 +102,10 @@ public class ParentAttendanceService {
 
                 ParentStatus status = parseStatus(request.getStatus(), "status");
 
-                return parentAttendanceRepository.findByStudentAndDate(student, date)
+                boolean created = parentAttendanceRepository.findByStudentAndDate(student, date)
                                 .map(existing -> {
                                         existing.setMotherStatus(status);
+                                        parentAttendanceRepository.save(existing); // 명시적 save
                                         return false; // 수정
                                 })
                                 .orElseGet(() -> {
@@ -97,6 +117,13 @@ public class ParentAttendanceService {
                                         parentAttendanceRepository.save(pa);
                                         return true; // 생성
                                 });
+
+                // WebSocket Broadcast
+                messagingTemplate.convertAndSend("/topic/attendance",
+                                new AttendanceService.AttendanceUpdateMessage("PARENT_MOTHER", student.getId(), student.getName(),
+                                                status.name(), java.time.LocalDateTime.now()));
+
+                return created;
         }
 
         /** 특정 학생, 특정 날짜 출석 조회 */

@@ -9,6 +9,7 @@ import java.time.LocalDate;
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -16,11 +17,13 @@ public class AttendanceTeacherService {
 
     private final AttendanceTeacherRepository attendanceTeacherRepository;
     private final TeacherRepository teacherRepository;
+    private final SimpMessagingTemplate messagingTemplate;
 
     public AttendanceTeacherService(AttendanceTeacherRepository attendanceTeacherRepository,
-        TeacherRepository teacherRepository) {
+        TeacherRepository teacherRepository, SimpMessagingTemplate messagingTemplate) {
         this.attendanceTeacherRepository = attendanceTeacherRepository;
         this.teacherRepository = teacherRepository;
+        this.messagingTemplate = messagingTemplate;
     }
 
     // 선생님 본인 출석 체크
@@ -39,6 +42,10 @@ public class AttendanceTeacherService {
 
         // 출석 정보 저장 (새로 추가하거나 기존 값을 업데이트)
         attendanceTeacherRepository.save(attendanceTeacher);
+
+        // WebSocket Broadcast
+        messagingTemplate.convertAndSend("/topic/attendance",
+            new AttendanceService.AttendanceUpdateMessage("TEACHER", teacher.getId(), teacher.getName(), status.name(), attendanceTeacher.getUpdatedAt()));
     }
 
     // 선생님 본인 출석 상태 조회
