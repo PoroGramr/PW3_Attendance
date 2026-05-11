@@ -4,7 +4,7 @@ Postman의 WebSocket 기능을 사용하여 출석 실시간 업데이트를 테
 
 ## 1. 연결 설정
 1. Postman에서 **New > WebSocket** 선택
-2. URL 입력: `ws://localhost:8080/ws-attendance/websocket`
+2. URL 입력:  배포 서버 -`wss://api.pw3hub.xyz/ws-attendance/websocket`,  로컬 - `ws://localhost:8080/ws-attendance/websocket`
 3. **Connect** 클릭
 
 ## 2. STOMP 핸드셰이크 (CONNECT)
