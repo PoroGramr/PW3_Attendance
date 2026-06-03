@@ -55,6 +55,52 @@ public class AiChatService {
         }
     }
 
+    public String generateMonthlyAttendanceMarkdown(MonthlyClassAttendanceReportResponse reportData) {
+        try {
+            String dataJson = objectMapper.writeValueAsString(reportData);
+            String prompt = """
+                    당신은 교회 출석부 관리자를 위한 월별 출석 리포트를 작성하는 조교입니다.
+                    아래 JSON 데이터만 근거로 마크다운 리포트를 작성하세요.
+                    숫자는 제공된 값을 그대로 사용하고, 없는 데이터는 추측하지 마세요.
+
+                    리포트 목적:
+                    - 관리자가 월별 반 출석률을 빠르게 파악
+                    - 출석률이 미비한 반과 전월 대비 하락한 반을 명확히 표시
+                    - 어떤 반을 우선 확인해야 하는지 판단 가능하게 작성
+
+                    출력 형식:
+                    # {year}년 {month}월 출석 리포트
+                    ## 전체 요약
+                    ## 출석률 상위 반
+                    ## 관리 필요 반
+                    ## 반별 출석률 표
+                    ## 관리자 확인 포인트
+
+                    작성 규칙:
+                    - 반드시 마크다운만 출력하세요.
+                    - 표를 적극적으로 사용하세요.
+                    - 관리 필요 반은 낮은 출석률 순으로 정리하세요.
+                    - status 값은 GOOD=우수, NORMAL=보통, WEAK=미비, DROPPED=하락으로 표현하세요.
+                    - 과장하지 말고 실무적으로 간결하게 작성하세요.
+
+                    JSON 데이터:
+                    {data}
+                    """
+                    .replace("{year}", String.valueOf(reportData.getYear()))
+                    .replace("{month}", String.valueOf(reportData.getMonth()))
+                    .replace("{data}", dataJson);
+
+            String markdown = callGeminiApi(prompt);
+            if (markdown != null && !markdown.isBlank()) {
+                return markdown.trim();
+            }
+        } catch (Exception e) {
+            log.warn("Failed to generate monthly attendance markdown with Gemini: {}", e.getMessage());
+        }
+
+        return buildFallbackMonthlyAttendanceMarkdown(reportData);
+    }
+
     /**
      * Gemini API 직접 호출
      */
@@ -439,6 +485,101 @@ public class AiChatService {
             log.error("Error formatting data", e);
             return data.toString();
         }
+    }
+
+    private String buildFallbackMonthlyAttendanceMarkdown(MonthlyClassAttendanceReportResponse data) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("# ").append(data.getYear()).append("년 ").append(data.getMonth()).append("월 출석 리포트\n\n");
+
+        sb.append("## 전체 요약\n\n");
+        sb.append("| 항목 | 값 |\n");
+        sb.append("| --- | ---: |\n");
+        sb.append("| 학년도 | ").append(data.getSchoolYear()).append(" |\n");
+        sb.append("| 집계 주일 수 | ").append(data.getTotalSundays()).append("회 |\n");
+        sb.append("| 전체 반 수 | ").append(data.getTotalClasses()).append("개 |\n");
+        sb.append("| 전체 평균 출석률 | ").append(data.getAverageAttendanceRate()).append("% |\n");
+        sb.append("| 관리 필요 반 | ").append(data.getWeakClassCount()).append("개 |\n");
+        sb.append("| 미비 기준 | ").append(data.getWeakClassThreshold()).append("% 미만 |\n\n");
+
+        sb.append("## 출석률 상위 반\n\n");
+        if (data.getTopClasses().isEmpty()) {
+            sb.append("집계된 반 데이터가 없습니다.\n\n");
+        } else {
+            sb.append("| 순위 | 반 | 담당 | 출석률 | 평균 출석 인원 |\n");
+            sb.append("| ---: | --- | --- | ---: | ---: |\n");
+            for (MonthlyClassAttendanceDto item : data.getTopClasses()) {
+                sb.append("| ").append(item.getRank())
+                        .append(" | ").append(item.getClassName())
+                        .append(" | ").append(item.getTeacherName())
+                        .append(" | ").append(item.getAttendanceRate()).append("%")
+                        .append(" | ").append(item.getAverageAttendedCount()).append("명 |\n");
+            }
+            sb.append("\n");
+        }
+
+        sb.append("## 관리 필요 반\n\n");
+        if (data.getWeakClasses().isEmpty()) {
+            sb.append("기준치 미만이거나 전월 대비 크게 하락한 반은 없습니다.\n\n");
+        } else {
+            sb.append("| 우선순위 | 반 | 담당 | 출석률 | 전월 대비 | 사유 |\n");
+            sb.append("| ---: | --- | --- | ---: | ---: | --- |\n");
+            for (int i = 0; i < data.getWeakClasses().size(); i++) {
+                WeakClassDto item = data.getWeakClasses().get(i);
+                sb.append("| ").append(i + 1)
+                        .append(" | ").append(item.getClassName())
+                        .append(" | ").append(item.getTeacherName())
+                        .append(" | ").append(item.getAttendanceRate()).append("%")
+                        .append(" | ").append(formatChange(item.getMonthOverMonthChange()))
+                        .append(" | ").append(item.getReason()).append(" |\n");
+            }
+            sb.append("\n");
+        }
+
+        sb.append("## 반별 출석률 표\n\n");
+        sb.append("| 순위 | 상태 | 반 | 담당 | 재적 | 평균 출석 | 출석률 | 전월 대비 |\n");
+        sb.append("| ---: | --- | --- | --- | ---: | ---: | ---: | ---: |\n");
+        for (MonthlyClassAttendanceDto item : data.getClasses()) {
+            sb.append("| ").append(item.getRank())
+                    .append(" | ").append(formatStatus(item.getStatus()))
+                    .append(" | ").append(item.getClassName())
+                    .append(" | ").append(item.getTeacherName())
+                    .append(" | ").append(item.getTotalStudents()).append("명")
+                    .append(" | ").append(item.getAverageAttendedCount()).append("명")
+                    .append(" | ").append(item.getAttendanceRate()).append("%")
+                    .append(" | ").append(formatChange(item.getMonthOverMonthChange())).append(" |\n");
+        }
+        sb.append("\n");
+
+        sb.append("## 관리자 확인 포인트\n\n");
+        if (data.getWeakClasses().isEmpty()) {
+            sb.append("- 이번 달은 출석률 미비 기준에 해당하는 반이 없습니다.\n");
+            sb.append("- 하위권 반의 주차별 변동을 확인해 다음 달 관리 기준을 조정해보세요.\n");
+        } else {
+            sb.append("- 관리 필요 반은 담당 교사와 결석 사유를 먼저 확인하세요.\n");
+            sb.append("- 전월 대비 하락한 반은 특정 주일의 출석 급락 여부를 함께 확인하세요.\n");
+            sb.append("- 기준치 미만 반은 다음 달에도 동일 기준으로 추적하는 것이 좋습니다.\n");
+        }
+
+        return sb.toString();
+    }
+
+    private String formatStatus(String status) {
+        return switch (status) {
+            case "GOOD" -> "우수";
+            case "WEAK" -> "미비";
+            case "DROPPED" -> "하락";
+            default -> "보통";
+        };
+    }
+
+    private String formatChange(Double value) {
+        if (value == null) {
+            return "-";
+        }
+        if (value > 0) {
+            return "+" + value + "%p";
+        }
+        return value + "%p";
     }
 
     /**

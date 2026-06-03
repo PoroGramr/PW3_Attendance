@@ -3,6 +3,7 @@ package com.jspark.pw3_attendant.service.Attendance;
 import com.jspark.pw3_attendant.repository.Attendance.AttendanceRepository;
 import com.jspark.pw3_attendant.repository.Student.StudentRepository;
 import com.jspark.pw3_attendant.repository.StudentClass.StudentClassRepository;
+import com.jspark.pw3_attendant.repository.TeacherClass.TeacherClassRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -10,12 +11,19 @@ import org.springframework.transaction.annotation.Transactional;
 import com.jspark.pw3_attendant.domain.Attendance.Attendance;
 import com.jspark.pw3_attendant.domain.Student.Student;
 import com.jspark.pw3_attendant.domain.StudentClass.StudentClass;
+import com.jspark.pw3_attendant.domain.TeacherClass.TeacherClass;
 import com.jspark.pw3_attendant.service.Attendance.dto.AbsenteeResponse;
+import com.jspark.pw3_attendant.service.Attendance.dto.MonthlyClassAttendanceDto;
+import com.jspark.pw3_attendant.service.Attendance.dto.MonthlyClassAttendanceReportResponse;
 import com.jspark.pw3_attendant.service.Attendance.dto.NewStudentAttendeeResponse;
+import com.jspark.pw3_attendant.service.Attendance.dto.WeakClassDto;
+import com.jspark.pw3_attendant.service.Attendance.dto.WeeklyClassAttendanceDto;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.YearMonth;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -30,6 +38,182 @@ public class AttendanceAnalysisService {
         private final StudentRepository studentRepository;
         private final AttendanceRepository attendanceRepository;
         private final StudentClassRepository studentClassRepository;
+        private final TeacherClassRepository teacherClassRepository;
+
+        public MonthlyClassAttendanceReportResponse getMonthlyClassAttendanceReport(
+                        int year,
+                        int month,
+                        int schoolYear,
+                        double weakClassThreshold) {
+                YearMonth targetMonth = YearMonth.of(year, month);
+                List<LocalDate> sundays = getSundaysInMonth(targetMonth);
+
+                List<StudentClass> studentClasses = studentClassRepository.findAllBySchoolYear(schoolYear);
+                if (studentClasses.isEmpty()) {
+                        return MonthlyClassAttendanceReportResponse.builder()
+                                        .year(year)
+                                        .month(month)
+                                        .schoolYear(schoolYear)
+                                        .totalSundays(sundays.size())
+                                        .sundays(sundays)
+                                        .averageAttendanceRate(0.0)
+                                        .weakClassThreshold(weakClassThreshold)
+                                        .totalClasses(0)
+                                        .weakClassCount(0)
+                                        .topClasses(List.of())
+                                        .classes(List.of())
+                                        .weakClasses(List.of())
+                                        .build();
+                }
+
+                Map<Long, List<StudentClass>> studentClassesByClassRoomId = studentClasses.stream()
+                                .collect(Collectors.groupingBy(sc -> sc.getClassRoom().getId()));
+
+                List<TeacherClass> teacherClasses = teacherClassRepository.findAllBySchoolYearAndClassRoomIn(
+                                schoolYear,
+                                studentClasses.stream()
+                                                .map(StudentClass::getClassRoom)
+                                                .distinct()
+                                                .toList());
+                Map<Long, String> teacherNameByClassRoomId = teacherClasses.stream()
+                                .filter(tc -> tc.getTeacher().getDeletedAt() == null)
+                                .collect(Collectors.toMap(
+                                                tc -> tc.getClassRoom().getId(),
+                                                tc -> tc.getTeacher().getName(),
+                                                (existing, replacement) -> existing));
+
+                Map<String, Long> attendedCountByClassRoomAndDate = getAttendedCountByClassRoomAndDate(
+                                targetMonth.atDay(1),
+                                targetMonth.atEndOfMonth(),
+                                schoolYear);
+                Map<Long, Double> previousMonthRateByClassRoomId = getPreviousMonthRateByClassRoomId(
+                                targetMonth.minusMonths(1),
+                                schoolYear);
+
+                List<MonthlyClassAttendanceDto> classes = studentClassesByClassRoomId.entrySet().stream()
+                                .map(entry -> {
+                                        Long classRoomId = entry.getKey();
+                                        List<StudentClass> classStudents = entry.getValue();
+                                        int totalStudents = classStudents.size();
+                                        String className = classStudents.get(0).getClassRoom().getName();
+                                        String teacherName = teacherNameByClassRoomId.getOrDefault(
+                                                        classRoomId,
+                                                        "담당 선생님 없음");
+
+                                        List<WeeklyClassAttendanceDto> weeklyStats = sundays.stream()
+                                                        .map(sunday -> {
+                                                                int attendedCount = attendedCountByClassRoomAndDate
+                                                                                .getOrDefault(
+                                                                                                buildAttendanceKey(
+                                                                                                                classRoomId,
+                                                                                                                sunday),
+                                                                                                0L)
+                                                                                .intValue();
+                                                                return WeeklyClassAttendanceDto.builder()
+                                                                                .date(sunday)
+                                                                                .totalStudents(totalStudents)
+                                                                                .attendedCount(attendedCount)
+                                                                                .attendanceRate(roundRate(
+                                                                                                totalStudents > 0
+                                                                                                                ? attendedCount
+                                                                                                                                * 100.0
+                                                                                                                                / totalStudents
+                                                                                                                : 0.0))
+                                                                                .build();
+                                                        })
+                                                        .toList();
+
+                                        double attendanceRate = weeklyStats.isEmpty()
+                                                        ? 0.0
+                                                        : roundRate(weeklyStats.stream()
+                                                                        .mapToDouble(WeeklyClassAttendanceDto::getAttendanceRate)
+                                                                        .average()
+                                                                        .orElse(0.0));
+                                        double averageAttendedCount = weeklyStats.isEmpty()
+                                                        ? 0.0
+                                                        : roundOneDecimal(weeklyStats.stream()
+                                                                        .mapToInt(WeeklyClassAttendanceDto::getAttendedCount)
+                                                                        .average()
+                                                                        .orElse(0.0));
+                                        Double previousRate = previousMonthRateByClassRoomId.get(classRoomId);
+                                        Double monthOverMonthChange = previousRate == null
+                                                        ? null
+                                                        : roundRate(attendanceRate - previousRate);
+
+                                        return MonthlyClassAttendanceDto.builder()
+                                                        .classRoomId(classRoomId)
+                                                        .className(className)
+                                                        .teacherName(teacherName)
+                                                        .totalStudents(totalStudents)
+                                                        .averageAttendedCount(averageAttendedCount)
+                                                        .attendanceRate(attendanceRate)
+                                                        .previousMonthAttendanceRate(previousRate)
+                                                        .monthOverMonthChange(monthOverMonthChange)
+                                                        .rank(0)
+                                                        .status(resolveClassStatus(attendanceRate, weakClassThreshold,
+                                                                        monthOverMonthChange))
+                                                        .weeklyStats(weeklyStats)
+                                                        .build();
+                                })
+                                .sorted(Comparator.comparing(MonthlyClassAttendanceDto::getAttendanceRate).reversed()
+                                                .thenComparing(MonthlyClassAttendanceDto::getClassName))
+                                .toList();
+
+                List<MonthlyClassAttendanceDto> rankedClasses = new ArrayList<>();
+                for (int i = 0; i < classes.size(); i++) {
+                        MonthlyClassAttendanceDto item = classes.get(i);
+                        rankedClasses.add(MonthlyClassAttendanceDto.builder()
+                                        .classRoomId(item.getClassRoomId())
+                                        .className(item.getClassName())
+                                        .teacherName(item.getTeacherName())
+                                        .totalStudents(item.getTotalStudents())
+                                        .averageAttendedCount(item.getAverageAttendedCount())
+                                        .attendanceRate(item.getAttendanceRate())
+                                        .previousMonthAttendanceRate(item.getPreviousMonthAttendanceRate())
+                                        .monthOverMonthChange(item.getMonthOverMonthChange())
+                                        .rank(i + 1)
+                                        .status(item.getStatus())
+                                        .weeklyStats(item.getWeeklyStats())
+                                        .build());
+                }
+
+                List<WeakClassDto> weakClasses = rankedClasses.stream()
+                                .filter(item -> "WEAK".equals(item.getStatus()) || "DROPPED".equals(item.getStatus()))
+                                .map(item -> WeakClassDto.builder()
+                                                .classRoomId(item.getClassRoomId())
+                                                .className(item.getClassName())
+                                                .teacherName(item.getTeacherName())
+                                                .attendanceRate(item.getAttendanceRate())
+                                                .previousMonthAttendanceRate(item.getPreviousMonthAttendanceRate())
+                                                .monthOverMonthChange(item.getMonthOverMonthChange())
+                                                .reason(buildWeakClassReason(item, weakClassThreshold))
+                                                .build())
+                                .sorted(Comparator.comparing(WeakClassDto::getAttendanceRate)
+                                                .thenComparing(WeakClassDto::getClassName))
+                                .toList();
+
+                double averageAttendanceRate = rankedClasses.isEmpty()
+                                ? 0.0
+                                : roundRate(rankedClasses.stream()
+                                                .mapToDouble(MonthlyClassAttendanceDto::getAttendanceRate)
+                                                .average()
+                                                .orElse(0.0));
+
+                return MonthlyClassAttendanceReportResponse.builder()
+                                .year(year)
+                                .month(month)
+                                .schoolYear(schoolYear)
+                                .totalSundays(sundays.size())
+                                .sundays(sundays)
+                                .averageAttendanceRate(averageAttendanceRate)
+                                .weakClassThreshold(weakClassThreshold)
+                                .totalClasses(rankedClasses.size())
+                                .weakClassCount(weakClasses.size())
+                                .topClasses(rankedClasses.stream().limit(3).toList())
+                                .classes(rankedClasses)
+                                .weakClasses(weakClasses)
+                                .build();
+        }
 
         public List<AbsenteeResponse> findLongTermAbsentees(LocalDate startDate, LocalDate endDate) {
                 int currentYear = getCurrentYear();
@@ -403,6 +587,112 @@ public class AttendanceAnalysisService {
 
         private int getCurrentYear() {
                 return LocalDate.now().getYear();
+        }
+
+        private Map<String, Long> getAttendedCountByClassRoomAndDate(LocalDate startDate, LocalDate endDate,
+                        int schoolYear) {
+                List<Attendance> attendances = attendanceRepository
+                                .findByDateBetweenAndSchoolYearAndStatusInWithStudentClass(
+                                startDate,
+                                endDate,
+                                schoolYear,
+                                List.of(Attendance.AttendanceStatus.ATTEND, Attendance.AttendanceStatus.LATE));
+
+                return attendances.stream()
+                                .collect(Collectors.groupingBy(
+                                                attendance -> buildAttendanceKey(
+                                                                attendance.getStudentClass().getClassRoom().getId(),
+                                                                attendance.getDate()),
+                                                Collectors.counting()));
+        }
+
+        private Map<Long, Double> getPreviousMonthRateByClassRoomId(YearMonth previousMonth, int schoolYear) {
+                List<LocalDate> previousSundays = getSundaysInMonth(previousMonth);
+                if (previousSundays.isEmpty()) {
+                        return Map.of();
+                }
+
+                List<StudentClass> studentClasses = studentClassRepository.findAllBySchoolYear(schoolYear);
+                Map<Long, Long> totalStudentsByClassRoomId = studentClasses.stream()
+                                .collect(Collectors.groupingBy(
+                                                sc -> sc.getClassRoom().getId(),
+                                                Collectors.counting()));
+
+                Map<String, Long> attendedCountByClassRoomAndDate = getAttendedCountByClassRoomAndDate(
+                                previousMonth.atDay(1),
+                                previousMonth.atEndOfMonth(),
+                                schoolYear);
+
+                return totalStudentsByClassRoomId.entrySet().stream()
+                                .collect(Collectors.toMap(
+                                                Map.Entry::getKey,
+                                                entry -> {
+                                                        Long classRoomId = entry.getKey();
+                                                        long totalStudents = entry.getValue();
+                                                        return roundRate(previousSundays.stream()
+                                                                        .mapToDouble(sunday -> {
+                                                                                long attendedCount = attendedCountByClassRoomAndDate
+                                                                                                .getOrDefault(
+                                                                                                                buildAttendanceKey(
+                                                                                                                                classRoomId,
+                                                                                                                                sunday),
+                                                                                                                0L);
+                                                                                return totalStudents > 0
+                                                                                                ? attendedCount * 100.0
+                                                                                                                / totalStudents
+                                                                                                : 0.0;
+                                                                        })
+                                                                        .average()
+                                                                        .orElse(0.0));
+                                                }));
+        }
+
+        private List<LocalDate> getSundaysInMonth(YearMonth yearMonth) {
+                List<LocalDate> sundays = new ArrayList<>();
+                LocalDate date = yearMonth.atDay(1);
+                while (!date.isAfter(yearMonth.atEndOfMonth())) {
+                        if (date.getDayOfWeek() == DayOfWeek.SUNDAY) {
+                                sundays.add(date);
+                        }
+                        date = date.plusDays(1);
+                }
+                return sundays;
+        }
+
+        private String buildAttendanceKey(Long classRoomId, LocalDate date) {
+                return classRoomId + "_" + date;
+        }
+
+        private String resolveClassStatus(double attendanceRate, double weakClassThreshold, Double monthOverMonthChange) {
+                if (attendanceRate < weakClassThreshold) {
+                        return "WEAK";
+                }
+                if (monthOverMonthChange != null && monthOverMonthChange <= -10.0) {
+                        return "DROPPED";
+                }
+                if (attendanceRate >= 85.0) {
+                        return "GOOD";
+                }
+                return "NORMAL";
+        }
+
+        private String buildWeakClassReason(MonthlyClassAttendanceDto item, double weakClassThreshold) {
+                if ("WEAK".equals(item.getStatus())) {
+                        return "월 평균 출석률 " + item.getAttendanceRate() + "%로 기준치 "
+                                        + weakClassThreshold + "% 미만";
+                }
+                if ("DROPPED".equals(item.getStatus())) {
+                        return "전월 대비 " + Math.abs(item.getMonthOverMonthChange()) + "%p 하락";
+                }
+                return "관리 확인 필요";
+        }
+
+        private double roundRate(double value) {
+                return Math.round(value * 10.0) / 10.0;
+        }
+
+        private double roundOneDecimal(double value) {
+                return Math.round(value * 10.0) / 10.0;
         }
 
 }

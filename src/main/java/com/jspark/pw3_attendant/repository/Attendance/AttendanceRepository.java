@@ -57,6 +57,19 @@ public interface AttendanceRepository extends JpaRepository<Attendance, Long> {
                         @Param("endDate") LocalDate endDate,
                         @Param("statuses") List<AttendanceStatus> statuses);
 
+        @Query("SELECT a FROM Attendance a " +
+                        "JOIN FETCH a.studentClass sc " +
+                        "JOIN FETCH sc.student " +
+                        "JOIN FETCH sc.classRoom " +
+                        "WHERE a.date BETWEEN :startDate AND :endDate " +
+                        "AND sc.schoolYear = :schoolYear " +
+                        "AND a.status IN :statuses")
+        List<Attendance> findByDateBetweenAndSchoolYearAndStatusInWithStudentClass(
+                        @Param("startDate") LocalDate startDate,
+                        @Param("endDate") LocalDate endDate,
+                        @Param("schoolYear") Integer schoolYear,
+                        @Param("statuses") List<AttendanceStatus> statuses);
+
         // 일요일만 필터링하는 버전 (DAYOFWEEK = 1 is Sunday in MySQL)
         @Query("SELECT a FROM Attendance a " +
                         "JOIN FETCH a.studentClass sc " +
