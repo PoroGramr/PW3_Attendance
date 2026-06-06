@@ -2,6 +2,7 @@ package com.jspark.pw3_attendant.service.ai;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jspark.pw3_attendant.service.Attendance.AttendanceAnalysisService;
+import com.jspark.pw3_attendant.service.Attendance.AttendanceService;
 import com.jspark.pw3_attendant.service.Attendance.dto.*;
 import com.jspark.pw3_attendant.service.ai.dto.IntentDetectionResponse;
 import com.jspark.pw3_attendant.service.ai.dto.QueryIntent;
@@ -22,6 +23,7 @@ import java.util.*;
 public class AiChatService {
 
     private final AttendanceAnalysisService attendanceAnalysisService;
+    private final AttendanceService attendanceService;
     private final ObjectMapper objectMapper;
     private final RestTemplate restTemplate = new RestTemplate();
 
@@ -165,12 +167,15 @@ public class AiChatService {
                 - FIND_CONSECUTIVE_ABSENCE_STUDENTS: N주 연속 결석 ("3주 연속 결석", "계속 안 나온")
                 - FIND_FREQUENT_LATE_STUDENTS: 지각 빈도 높은 학생 ("지각이 잦은", "지각 많은")
                 - GET_AVERAGE_ATTENDANCE_RATE_BY_GRADE: 학년별 평균 출석률 ("학년별 출석률", "학년별 평균")
+                - GET_TEACHER_ATTENDANCE_RATE: 선생님 출석률 또는 출석 현황 ("선생님 출석률", "교사 출석율", "오늘 선생님 몇 명 출석")
                 - FIND_STUDENTS_NEEDING_CARE: 관리가 필요한 학생 ("관리가 필요한", "위험 학생", "문제 학생")
                 - FIND_NEW_CONSECUTIVE_ATTENDEES: 신입생 정착 현황 ("신입인데 연속 출석", "신입생 정착")
 
                 파라미터 추출 규칙:
+                - "오늘": date는 %s
                 - "이번 달": startDate는 %s, endDate는 %s
                 - "지난 달": 이전 달의 1일과 마지막 날
+                - 특정 날짜가 있으면 date 파라미터로 추출
                 - "N주": weeks 파라미터로 추출
                 - "N명": topN 파라미터로 추출
                 - 학년도는 현재 연도 %d로 설정
@@ -182,6 +187,7 @@ public class AiChatService {
                   "intent": "의도명",
                   "params": {
                     "weeks": 3,
+                    "date": "%s",
                     "startDate": "%s",
                     "endDate": "%s",
                     "topN": 10,
@@ -192,10 +198,12 @@ public class AiChatService {
                 today,
                 today.getYear(),
                 today.getMonthValue(),
+                today,
                 currentMonth.atDay(1),
                 currentMonth.atEndOfMonth(),
                 today.getYear(),
                 question,
+                today,
                 currentMonth.atDay(1),
                 currentMonth.atEndOfMonth(),
                 today.getYear());
@@ -238,12 +246,13 @@ public class AiChatService {
 
         LocalDate startDate = parseDate(params.get("startDate"), defaultStartDate);
         LocalDate endDate = parseDate(params.get("endDate"), defaultEndDate);
+        LocalDate date = parseDate(params.get("date"), LocalDate.now());
         Integer schoolYear = parseInteger(params.get("schoolYear"), LocalDate.now().getYear());
         Integer weeks = parseInteger(params.get("weeks"), 3);
         Integer topN = parseInteger(params.get("topN"), 10);
 
-        log.info("Retrieving data with: startDate={}, endDate={}, schoolYear={}, weeks={}, topN={}",
-                startDate, endDate, schoolYear, weeks, topN);
+        log.info("Retrieving data with: date={}, startDate={}, endDate={}, schoolYear={}, weeks={}, topN={}",
+                date, startDate, endDate, schoolYear, weeks, topN);
 
         return switch (intent) {
             case LIST_FULL_ABSENCE_STUDENTS ->
@@ -257,6 +266,9 @@ public class AiChatService {
 
             case GET_AVERAGE_ATTENDANCE_RATE_BY_GRADE ->
                 attendanceAnalysisService.getAverageAttendanceRateByGrade(startDate, endDate, schoolYear);
+
+            case GET_TEACHER_ATTENDANCE_RATE ->
+                attendanceService.getDailyAttendanceSummary(date, schoolYear);
 
             case FIND_STUDENTS_NEEDING_CARE ->
                 attendanceAnalysisService.findStudentsNeedingCare(startDate, endDate, schoolYear);
@@ -311,6 +323,8 @@ public class AiChatService {
                 4. "총 N명"과 같이 구체적인 숫자를 언급하세요
                 5. 데이터에 "해당하는 학생이 없습니다"라고 명시된 경우에만 그렇게 답변하세요
                 6. 간결하고 명확하게 답변하세요
+                7. 선생님 출석률 질문이면 출석률, 출석/지각/결석/미체크 인원, 총 선생님 수를 포함하세요
+                8. 선생님 출석률 계산에서 출석 인원은 ATTEND와 LATE를 포함한 값입니다
 
                 **다시 한 번 강조: 위 데이터는 실제 조회 결과이므로, 반드시 이 데이터를 기반으로 답변하세요.**
                 """;
@@ -357,6 +371,8 @@ public class AiChatService {
                 "📋 **지각이 잦은 학생 목록**\n\n";
             case GET_AVERAGE_ATTENDANCE_RATE_BY_GRADE ->
                 "📊 **학년별 평균 출석률**\n\n";
+            case GET_TEACHER_ATTENDANCE_RATE ->
+                "📊 **선생님 출석률**\n\n";
             case FIND_STUDENTS_NEEDING_CARE ->
                 "⚠️ **관리가 필요한 학생 목록**\n\n";
             case FIND_NEW_CONSECUTIVE_ATTENDEES ->
@@ -439,6 +455,38 @@ public class AiChatService {
                                 .append(" (").append(rate.getAttendedCount())
                                 .append("/").append(rate.getTotalStudents()).append("명)\n");
                     }
+                    yield sb.toString();
+                }
+
+                case GET_TEACHER_ATTENDANCE_RATE -> {
+                    DailyAttendanceSummaryResponse summary = (DailyAttendanceSummaryResponse) data;
+                    List<TeacherAttendanceSummary> teachers = summary.getTeacherAttendances();
+                    int totalTeachers = teachers.size();
+                    long attendCount = teachers.stream()
+                            .filter(teacher -> teacher.getStatus() == com.jspark.pw3_attendant.domain.Attendance.Attendance.AttendanceStatus.ATTEND)
+                            .count();
+                    long lateCount = teachers.stream()
+                            .filter(teacher -> teacher.getStatus() == com.jspark.pw3_attendant.domain.Attendance.Attendance.AttendanceStatus.LATE)
+                            .count();
+                    long absentCount = teachers.stream()
+                            .filter(teacher -> teacher.getStatus() == com.jspark.pw3_attendant.domain.Attendance.Attendance.AttendanceStatus.ABSENT)
+                            .count();
+                    long uncheckedCount = teachers.stream()
+                            .filter(teacher -> teacher.getStatus() == null)
+                            .count();
+                    long attendedTotal = attendCount + lateCount;
+                    double attendanceRate = totalTeachers == 0
+                            ? 0
+                            : Math.round((attendedTotal * 1000.0) / totalTeachers) / 10.0;
+
+                    StringBuilder sb = new StringBuilder();
+                    sb.append(summary.getDate()).append(" 선생님 출석률: ")
+                            .append(attendanceRate).append("%\n");
+                    sb.append("- 총 선생님: ").append(totalTeachers).append("명\n");
+                    sb.append("- 출석 인정: ").append(attendedTotal).append("명")
+                            .append(" (출석 ").append(attendCount).append("명, 지각 ").append(lateCount).append("명)\n");
+                    sb.append("- 결석: ").append(absentCount).append("명\n");
+                    sb.append("- 미체크: ").append(uncheckedCount).append("명\n");
                     yield sb.toString();
                 }
 
