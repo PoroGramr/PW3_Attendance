@@ -430,6 +430,56 @@ Student (1) ──────< (1) StudentQr
 
 ## 🔒 보안
 
+### 관리자 인증
+
+관리자 가입 계정은 슈퍼어드민 승인 후 로그인할 수 있습니다. Access Token은 API 요청의
+`Authorization: Bearer <token>` 헤더에 전달하고, Refresh Token은 재발급 및 로그아웃 API에서만 사용합니다.
+
+필수 환경 변수:
+
+```bash
+JWT_SECRET=<32바이트 이상의 일반 문자열 또는 Base64 문자열>
+JWT_ACCESS_TOKEN_VALIDITY=15m
+JWT_REFRESH_TOKEN_VALIDITY=14d
+JWT_ISSUER=pw3-attendant
+```
+
+주요 엔드포인트:
+
+| 메서드 | 경로 | 권한 |
+|---|---|---|
+| POST | `/api/auth/signup` | 공개 |
+| PUT | `/api/auth/resubmit` | 공개, 거절 계정의 기존 비밀번호 확인 |
+| POST | `/api/auth/login` | 공개 |
+| POST | `/api/auth/refresh` | 공개, Refresh Token 필요 |
+| POST | `/api/auth/logout` | 공개, Refresh Token 필요 |
+| POST | `/api/auth/logout-all` | 로그인 관리자 |
+| GET | `/api/auth/me` | 로그인 관리자 |
+| GET | `/api/super-admin/admins?status=PENDING` | 슈퍼어드민 |
+| PATCH | `/api/super-admin/admins/{id}/approve` | 슈퍼어드민 |
+| PATCH | `/api/super-admin/admins/{id}/reject` | 슈퍼어드민 |
+
+최초 슈퍼어드민은 운영 DB에 수동 등록합니다. 먼저 비밀번호 해시를 생성합니다.
+
+```bash
+read -s ADMIN_PASSWORD
+export ADMIN_PASSWORD
+./gradlew generateAdminPasswordHash
+unset ADMIN_PASSWORD
+```
+
+출력된 해시를 아래 `password_hash`에 넣습니다.
+
+```sql
+INSERT INTO admin_account (
+    username, password_hash, name, email, phone, role, approval_status,
+    approved_at, created_at, updated_at
+) VALUES (
+    'superadmin', '<BCrypt hash>', '슈퍼 관리자', 'superadmin@example.com', '01000000000',
+    'SUPER_ADMIN', 'APPROVED', CURRENT_TIMESTAMP(6), CURRENT_TIMESTAMP(6), CURRENT_TIMESTAMP(6)
+);
+```
+
 ### 적용된 보안 조치
 
 - **SQL Injection 방지**: JPA Parameterized Query 사용
@@ -439,9 +489,9 @@ Student (1) ──────< (1) StudentQr
 
 ### 향후 개선 계획
 
-- [ ] Spring Security 적용
-- [ ] JWT 기반 인증/인가
-- [ ] Role-based Access Control (RBAC)
+- [x] Spring Security 적용
+- [x] JWT 기반 인증/인가
+- [x] Role-based Access Control (RBAC)
 - [ ] API Rate Limiting
 
 ---
@@ -475,4 +525,3 @@ This project is licensed under the MIT License.
 이 프로젝트는 교회 주일학교의 효율적인 운영을 위해 개발되었습니다.
 
 ---
-

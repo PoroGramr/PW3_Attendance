@@ -3,12 +3,14 @@ package com.jspark.pw3_attendant.controller;
 import com.jspark.pw3_attendant.service.Student.StudentService;
 import com.jspark.pw3_attendant.service.Student.dto.MonthlyStudentRegistrationResponse;
 import com.jspark.pw3_attendant.service.StudentClass.StudentClassService;
+import com.jspark.pw3_attendant.service.qr.QrService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.security.test.context.support.WithMockUser;
 
 import java.util.List;
 
@@ -29,7 +31,11 @@ class StudentControllerTest {
     @MockBean
     private StudentClassService studentClassService;
 
+    @MockBean
+    private QrService qrService;
+
     @Test
+    @WithMockUser(roles = "ADMIN")
     @DisplayName("연도별 월별 학생 등록 현황 조회")
     void getMonthlyRegistrations() throws Exception {
         // given
@@ -40,7 +46,7 @@ class StudentControllerTest {
         given(studentService.findStudentsByYearGroupByMonth(year)).willReturn(response);
 
         // when & then
-        mockMvc.perform(get("/students/registrations/by-year/{year}", year))
+        mockMvc.perform(get("/api/students/registrations/by-year/{year}", year))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].month").value(1));
     }

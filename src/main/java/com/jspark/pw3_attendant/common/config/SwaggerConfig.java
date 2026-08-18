@@ -3,7 +3,10 @@ package com.jspark.pw3_attendant.common.config;
 import io.swagger.v3.oas.annotations.OpenAPIDefinition;
 import io.swagger.v3.oas.annotations.servers.Server;
 import io.swagger.v3.oas.models.OpenAPI;
+import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.info.Info;
+import io.swagger.v3.oas.models.security.SecurityRequirement;
+import io.swagger.v3.oas.models.security.SecurityScheme;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -22,6 +25,14 @@ public class SwaggerConfig {
     @Bean
     public OpenAPI openAPI() {
         return new OpenAPI()
+            .components(new Components().addSecuritySchemes(
+                "bearerAuth",
+                new SecurityScheme()
+                    .type(SecurityScheme.Type.HTTP)
+                    .scheme("bearer")
+                    .bearerFormat("JWT")
+            ))
+            .addSecurityItem(new SecurityRequirement().addList("bearerAuth"))
             .info(new Info()
                 .title("출석 체크 시스템 API 문서")
                 .description("### [실시간 출석 업데이트 웹소켓 안내]\n\n" +

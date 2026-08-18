@@ -2,3 +2,38 @@ external:
   imgbb:
     api:
       key: test-dummy-imgbb-key
+
+GEMINI_API_KEY: test-dummy-gemini-key
+
+spring:
+  datasource:
+    url: jdbc:h2:mem:pw3-test;MODE=MySQL;DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+  flyway:
+    enabled: false
+  ai:
+    openai:
+      api-key: test-dummy-gemini-key
+
+app:
+  qr-url-base: http://localhost:8080
+  jwt:
+    secret: dGVzdC1qd3Qtc2VjcmV0LW11c3QtYmUtYXQtbGVhc3QtMzItYnl0ZXM=
+    access-token-validity: 15m
+    refresh-token-validity: 14d
+    issuer: pw3-attendant-test
+
+coolsms:
+  api:
+    key: test-key
+    secret: test-secret
+    number: "01000000000"
+
+discord:
+  webhook:
+    url: http://localhost/test-webhook

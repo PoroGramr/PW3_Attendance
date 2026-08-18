@@ -3,6 +3,7 @@ package com.jspark.pw3_attendant.controller;
 import com.jspark.pw3_attendant.service.qr.QrService;
 import com.jspark.pw3_attendant.service.qr.dto.QrResolveResponseDto;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirements;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -15,6 +16,7 @@ import org.springframework.http.HttpStatus;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/public/qr")
+@SecurityRequirements
 public class PublicQrController {
 
     private final QrService qrService;

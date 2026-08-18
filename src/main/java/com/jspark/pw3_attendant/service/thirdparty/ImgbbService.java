@@ -20,7 +20,7 @@ import java.util.Objects;
 @Slf4j // 추가
 public class ImgbbService {
 
-    @Value("${imgbb.api.key}")
+    @Value("${external.imgbb.api.key}")
     private String imgbbApiKey;
 
     private final RestTemplate restTemplate;

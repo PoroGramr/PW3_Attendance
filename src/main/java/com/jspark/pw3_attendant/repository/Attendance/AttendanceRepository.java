@@ -24,7 +24,8 @@ public interface AttendanceRepository extends JpaRepository<Attendance, Long> {
         // 특정 반(classRoomId) + 특정 연도(schoolYear) + 날짜(date)로 출석 조회 (확장용, 선택)
         // -> 필요 시 Query 추가 가능
 
-        @Query("SELECT DISTINCT a.date FROM Attendance a WHERE DAYOFWEEK(a.date) = 1 ORDER BY a.date DESC")
+        @Query("SELECT DISTINCT a.date FROM Attendance a "
+                        + "WHERE CAST(FUNCTION('dayofweek', a.date) AS integer) = 1 ORDER BY a.date DESC")
         List<LocalDate> findDistinctSundays();
 
         long countByDateAndStatus(LocalDate date, AttendanceStatus status);
@@ -76,7 +77,7 @@ public interface AttendanceRepository extends JpaRepository<Attendance, Long> {
                         "JOIN FETCH sc.student " +
                         "JOIN FETCH sc.classRoom " +
                         "WHERE a.date BETWEEN :startDate AND :endDate " +
-                        "AND DAYOFWEEK(a.date) = 1 " +
+                        "AND CAST(FUNCTION('dayofweek', a.date) AS integer) = 1 " +
                         "AND a.status IN :statuses")
         List<Attendance> findSundayAttendanceByDateBetweenAndStatusIn(
                         @Param("startDate") LocalDate startDate,
