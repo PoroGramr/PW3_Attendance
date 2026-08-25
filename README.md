@@ -459,6 +459,31 @@ JWT_ISSUER=pw3-attendant
 | PATCH | `/api/super-admin/admins/{id}/approve` | 슈퍼어드민 |
 | PATCH | `/api/super-admin/admins/{id}/reject` | 슈퍼어드민 |
 
+### 학생·교사 얼굴 사진
+
+얼굴 사진은 비공개 MinIO 버킷에 저장하고, 데이터베이스에는 객체 키만 보관합니다. 학생과 교사는 각각 대표 사진 1장만 가질 수 있으며 새 사진 업로드 시 기존 사진을 교체합니다.
+
+```bash
+MINIO_ENDPOINT=https://minio.example.com
+MINIO_ACCESS_KEY=<MinIO access key>
+MINIO_SECRET_KEY=<MinIO secret key>
+MINIO_BUCKET=pw3-face-images
+MINIO_PRESIGNED_URL_VALIDITY=10m
+```
+
+버킷이 없으면 최초 업로드 때 생성하므로 MinIO 계정에는 해당 버킷의 조회·생성·업로드·삭제 권한이 필요합니다. 기존 버킷을 사용할 경우 비공개 정책을 유지해야 합니다.
+
+| 메서드 | 경로 | 설명 |
+|---|---|---|
+| PUT | `/api/students/{id}/face-image` | 학생 사진 등록·교체 (`multipart/form-data`, `file`) |
+| GET | `/api/students/{id}/face-image` | 학생 사진의 임시 조회 URL 발급 |
+| DELETE | `/api/students/{id}/face-image` | 학생 사진 삭제 |
+| PUT | `/api/teacher/{id}/face-image` | 교사 사진 등록·교체 (`multipart/form-data`, `file`) |
+| GET | `/api/teacher/{id}/face-image` | 교사 사진의 임시 조회 URL 발급 |
+| DELETE | `/api/teacher/{id}/face-image` | 교사 사진 삭제 |
+
+업로드는 JPEG 또는 PNG만 허용하며 파일은 5MB, 가로·세로는 각각 4096px 이하여야 합니다. 모든 얼굴 사진 API는 관리자 Access Token 인증이 필요합니다.
+
 최초 슈퍼어드민은 운영 DB에 수동 등록합니다. 먼저 비밀번호 해시를 생성합니다.
 
 ```bash

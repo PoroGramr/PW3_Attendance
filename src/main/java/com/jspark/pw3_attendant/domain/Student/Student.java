@@ -80,11 +80,18 @@ public class Student extends BaseEntity {
 
     private String memo;
 
+    @Column(name = "face_image_key", length = 512)
+    private String faceImageKey;
+
     @Column(nullable = false)
     private Boolean isGraduated = false;
 
     @Column
     private LocalDateTime deletedAt;
+
+    public void setFaceImageKey(String faceImageKey) {
+        this.faceImageKey = faceImageKey;
+    }
 
     @OneToMany(mappedBy = "student", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<StudentClass> studentClasses = new ArrayList<>();

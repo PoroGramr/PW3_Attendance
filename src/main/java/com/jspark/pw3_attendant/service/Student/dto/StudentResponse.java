@@ -31,6 +31,7 @@ public class StudentResponse {
     private String parentPhone;
     private String school;
     private String memo;
+    private boolean hasFaceImage;
     private LocalDateTime deletedAt;
     private Map<Integer, List<ClassRoomResponse>> classesByYear;
 
@@ -44,6 +45,7 @@ public class StudentResponse {
             student.getParentPhone(),
             student.getSchool(),
             student.getMemo(),
+            student.getFaceImageKey() != null && !student.getFaceImageKey().isBlank(),
             student.getDeletedAt(),
             classesByYear
         );

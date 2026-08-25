@@ -33,6 +33,7 @@ dependencies {
 	implementation 'mysql:mysql-connector-java:8.0.33'
 	implementation 'org.flywaydb:flyway-core'
 	implementation 'org.flywaydb:flyway-mysql'
+	implementation 'io.minio:minio:9.0.1'
     implementation 'net.nurigo:sdk:4.3.2'
     	implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
         implementation 'io.projectreactor:reactor-core' // org.reactivestreams.Publisher를 제공

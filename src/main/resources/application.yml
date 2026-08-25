@@ -19,6 +19,11 @@ spring:
     baseline-on-migrate: true
     baseline-version: 1
 
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 6MB
+
   ai:
     openai:
       api-key: ${GEMINI_API_KEY}
@@ -35,6 +40,12 @@ app:
     access-token-validity: ${JWT_ACCESS_TOKEN_VALIDITY:15m}
     refresh-token-validity: ${JWT_REFRESH_TOKEN_VALIDITY:14d}
     issuer: ${JWT_ISSUER:pw3-attendant}
+  minio:
+    endpoint: ${MINIO_ENDPOINT}
+    access-key: ${MINIO_ACCESS_KEY}
+    secret-key: ${MINIO_SECRET_KEY}
+    bucket: ${MINIO_BUCKET:pw3-face-images}
+    presigned-url-validity: ${MINIO_PRESIGNED_URL_VALIDITY:10m}
 
 coolsms:
   api:

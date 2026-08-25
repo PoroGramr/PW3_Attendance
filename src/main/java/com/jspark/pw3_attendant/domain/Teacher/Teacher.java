@@ -38,8 +38,15 @@ public class Teacher extends BaseEntity {
 
     private String memo;
 
+    @Column(name = "face_image_key", length = 512)
+    private String faceImageKey;
+
     @Column
     private LocalDateTime deletedAt;
+
+    public void setFaceImageKey(String faceImageKey) {
+        this.faceImageKey = faceImageKey;
+    }
 
     public void setName(String name) {
         this.name = name;

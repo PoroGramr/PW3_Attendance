@@ -33,6 +33,7 @@ public class TeacherResponse {
     private String phone;
     private TeacherType teacherType;
     private String memo;
+    private boolean hasFaceImage;
     private LocalDateTime deletedAt;
     private Map<Integer, List<ClassRoomResponse>> classesByYear;
 
@@ -46,6 +47,7 @@ public class TeacherResponse {
             teacher.getPhone(),
             teacher.getTeacherType(),
             teacher.getMemo(),
+            teacher.getFaceImageKey() != null && !teacher.getFaceImageKey().isBlank(),
             teacher.getDeletedAt(),
             classesByYear
         );
@@ -60,6 +62,7 @@ public class TeacherResponse {
             teacher.getPhone(),
             teacher.getTeacherType(),
             teacher.getMemo(),
+            teacher.getFaceImageKey() != null && !teacher.getFaceImageKey().isBlank(),
             teacher.getDeletedAt(),
             null // 담당 반 정보는 포함하지 않음
         );
