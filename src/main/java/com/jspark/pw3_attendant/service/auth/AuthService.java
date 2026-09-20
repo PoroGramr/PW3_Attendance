@@ -11,6 +11,7 @@ import com.jspark.pw3_attendant.service.auth.dto.AdminAccountResponse;
 import com.jspark.pw3_attendant.service.auth.dto.LoginRequest;
 import com.jspark.pw3_attendant.service.auth.dto.SignupRequest;
 import com.jspark.pw3_attendant.service.auth.dto.TokenResponse;
+import com.jspark.pw3_attendant.service.auth.dto.UpdateProfileRequest;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -139,6 +140,28 @@ public class AuthService {
     @Transactional(readOnly = true)
     public AdminAccountResponse getMe(Long adminId) {
         return AdminAccountResponse.from(requireAccount(adminId));
+    }
+
+    @Transactional
+    public AdminAccountResponse updateMe(Long adminId, UpdateProfileRequest request) {
+        AdminAccount account = requireAccount(adminId);
+        if (!passwordEncoder.matches(request.currentPassword(), account.getPasswordHash())) {
+            throw invalidCredentials();
+        }
+        String email = normalizeEmail(request.email());
+        if (adminAccountRepository.existsByEmailAndIdNot(email, adminId)) {
+            throw new ApiException(HttpStatus.CONFLICT, "EMAIL_ALREADY_EXISTS", "이미 사용 중인 이메일입니다.");
+        }
+        account.updateProfile(request.name().trim(), email, normalizePhone(request.phone()));
+        if (request.newPassword() != null) {
+            account.changePassword(passwordEncoder.encode(request.newPassword()));
+            refreshTokenRepository.revokeAllByAdminId(adminId, LocalDateTime.now(ZoneOffset.UTC));
+        }
+        try {
+            return AdminAccountResponse.from(adminAccountRepository.saveAndFlush(account));
+        } catch (DataIntegrityViolationException exception) {
+            throw new ApiException(HttpStatus.CONFLICT, "EMAIL_ALREADY_EXISTS", "이미 사용 중인 이메일입니다.");
+        }
     }
 
     private TokenResponse issueTokenPair(AdminAccount account, String deviceInfo) {

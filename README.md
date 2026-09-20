@@ -444,6 +444,25 @@ JWT_REFRESH_TOKEN_VALIDITY=14d
 JWT_ISSUER=pw3-attendant
 ```
 
+아이디 찾기와 비밀번호 초기화 이메일 발송을 위한 SMTP 환경 변수:
+
+```bash
+MAIL_HOST=smtp.example.com
+MAIL_PORT=587
+MAIL_USERNAME=no-reply@example.com
+MAIL_PASSWORD=<SMTP password>
+MAIL_FROM=no-reply@example.com
+MAIL_SMTP_AUTH=true
+MAIL_SMTP_STARTTLS_ENABLE=true
+
+# 선택값
+ACCOUNT_RECOVERY_CODE_VALIDITY=10m
+ACCOUNT_RECOVERY_RESEND_INTERVAL=1m
+ACCOUNT_RECOVERY_MAX_ATTEMPTS=5
+```
+
+문자 발송은 기존 `COOLSMS_API_KEY`, `COOLSMS_SECRET_KEY`, `COOLSMS_SENDER_NUMBER` 설정을 사용합니다.
+
 주요 엔드포인트:
 
 | 메서드 | 경로 | 권한 |
@@ -455,6 +474,10 @@ JWT_ISSUER=pw3-attendant
 | POST | `/api/auth/logout` | 공개, Refresh Token 필요 |
 | POST | `/api/auth/logout-all` | 로그인 관리자 |
 | GET | `/api/auth/me` | 로그인 관리자 |
+| PATCH | `/api/auth/me` | 로그인 관리자, 회원정보 및 선택적 비밀번호 변경 |
+| POST | `/api/auth/find-username` | 공개, 등록 이메일·전화번호로 아이디 발송 |
+| POST | `/api/auth/password-reset/request` | 공개, 초기화 인증번호 발송 |
+| POST | `/api/auth/password-reset/confirm` | 공개, 인증번호 확인 후 비밀번호 변경 |
 | GET | `/api/super-admin/admins?status=PENDING` | 슈퍼어드민 |
 | PATCH | `/api/super-admin/admins/{id}/approve` | 슈퍼어드민 |
 | PATCH | `/api/super-admin/admins/{id}/reject` | 슈퍼어드민 |

@@ -1,12 +1,19 @@
 package com.jspark.pw3_attendant.controller.auth;
 
 import com.jspark.pw3_attendant.service.auth.AuthService;
+import com.jspark.pw3_attendant.service.auth.AccountRecoveryService;
 import com.jspark.pw3_attendant.service.auth.dto.AdminAccountResponse;
 import com.jspark.pw3_attendant.service.auth.dto.LoginRequest;
 import com.jspark.pw3_attendant.service.auth.dto.LogoutRequest;
 import com.jspark.pw3_attendant.service.auth.dto.RefreshRequest;
 import com.jspark.pw3_attendant.service.auth.dto.SignupRequest;
 import com.jspark.pw3_attendant.service.auth.dto.TokenResponse;
+import com.jspark.pw3_attendant.service.auth.dto.PasswordResetConfirmRequest;
+import com.jspark.pw3_attendant.service.auth.dto.PasswordResetRequest;
+import com.jspark.pw3_attendant.service.auth.dto.PasswordResetRequestResponse;
+import com.jspark.pw3_attendant.service.auth.dto.RecoveryAcceptedResponse;
+import com.jspark.pw3_attendant.service.auth.dto.UpdateProfileRequest;
+import com.jspark.pw3_attendant.service.auth.dto.UsernameReminderRequest;
 import jakarta.validation.Valid;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -20,6 +27,7 @@ import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -32,6 +40,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthController {
 
     private final AuthService authService;
+    private final AccountRecoveryService accountRecoveryService;
 
     @PostMapping("/signup")
     @SecurityRequirements
@@ -113,5 +122,61 @@ public class AuthController {
     })
     public AdminAccountResponse me(@AuthenticationPrincipal Jwt jwt) {
         return authService.getMe(Long.valueOf(jwt.getSubject()));
+    }
+
+    @PatchMapping("/me")
+    @Operation(
+            summary = "현재 관리자 정보 수정",
+            description = "현재 비밀번호를 확인한 후 이름·이메일·전화번호를 수정합니다. 새 비밀번호는 선택 사항입니다."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "회원정보 수정 성공"),
+            @ApiResponse(responseCode = "400", description = "입력값 형식 오류"),
+            @ApiResponse(responseCode = "401", description = "인증 실패 또는 현재 비밀번호 불일치"),
+            @ApiResponse(responseCode = "409", description = "이미 사용 중인 이메일")
+    })
+    public AdminAccountResponse updateMe(
+            @AuthenticationPrincipal Jwt jwt,
+            @Valid @RequestBody UpdateProfileRequest request) {
+        return authService.updateMe(Long.valueOf(jwt.getSubject()), request);
+    }
+
+    @PostMapping("/find-username")
+    @SecurityRequirements
+    @Operation(
+            summary = "아이디 찾기",
+            description = "가입한 이름과 이메일 또는 전화번호가 일치하면 등록된 수신처로 아이디를 발송합니다."
+    )
+    @ApiResponse(responseCode = "202", description = "발송 요청 접수")
+    public ResponseEntity<RecoveryAcceptedResponse> findUsername(
+            @Valid @RequestBody UsernameReminderRequest request) {
+        return ResponseEntity.accepted().body(accountRecoveryService.sendUsernameReminder(request));
+    }
+
+    @PostMapping("/password-reset/request")
+    @SecurityRequirements
+    @Operation(
+            summary = "비밀번호 초기화 인증번호 요청",
+            description = "아이디와 등록된 이메일 또는 전화번호가 일치하면 6자리 인증번호를 발송합니다."
+    )
+    @ApiResponse(responseCode = "202", description = "인증번호 발송 요청 접수")
+    public ResponseEntity<PasswordResetRequestResponse> requestPasswordReset(
+            @Valid @RequestBody PasswordResetRequest request) {
+        return ResponseEntity.accepted().body(accountRecoveryService.requestPasswordReset(request));
+    }
+
+    @PostMapping("/password-reset/confirm")
+    @SecurityRequirements
+    @Operation(
+            summary = "비밀번호 초기화 완료",
+            description = "발급된 요청 ID와 인증번호를 확인한 후 새 비밀번호로 변경하고 모든 Refresh Token을 폐기합니다."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "비밀번호 변경 성공"),
+            @ApiResponse(responseCode = "400", description = "인증번호 오류·만료 또는 입력값 오류")
+    })
+    public RecoveryAcceptedResponse confirmPasswordReset(
+            @Valid @RequestBody PasswordResetConfirmRequest request) {
+        return accountRecoveryService.confirmPasswordReset(request);
     }
 }

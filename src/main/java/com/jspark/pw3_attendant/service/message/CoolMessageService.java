@@ -73,6 +73,14 @@ public class CoolMessageService implements MessageService { // Implement Message
 
     @Async("smsExecutor")
     public void sendSms(String to,String messageTxt) {
+        sendSmsInternal(to, messageTxt, true);
+    }
+
+    public void sendSensitiveSms(String to, String messageTxt) {
+        sendSmsInternal(to, messageTxt, false);
+    }
+
+    private void sendSmsInternal(String to, String messageTxt, boolean logContent) {
         Message message = new Message();
         message.setFrom(this.fromPhoneNumber);
         message.setTo(to);
@@ -81,7 +89,11 @@ public class CoolMessageService implements MessageService { // Implement Message
         SingleMessageSendingRequest request = new SingleMessageSendingRequest(message);
 
         this.messageService.sendOne(request);
-        log.info("CoolMessageService: SMS sent to {} with content: {}", to, messageTxt);
+        if (logContent) {
+            log.info("CoolMessageService: SMS sent to {} with content: {}", to, messageTxt);
+        } else {
+            log.info("CoolMessageService: sensitive SMS sent to {}", to);
+        }
     }
 
 //    @Async("smsExecutor")

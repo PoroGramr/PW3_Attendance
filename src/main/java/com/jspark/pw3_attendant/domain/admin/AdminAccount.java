@@ -124,6 +124,16 @@ public class AdminAccount extends BaseEntity {
         lastLoginAt = LocalDateTime.now();
     }
 
+    public void updateProfile(String name, String email, String phone) {
+        this.name = name;
+        this.email = email;
+        this.phone = phone;
+    }
+
+    public void changePassword(String passwordHash) {
+        this.passwordHash = passwordHash;
+    }
+
     private void requirePending() {
         if (approvalStatus != ApprovalStatus.PENDING) {
             throw new IllegalStateException("승인 대기 중인 계정만 처리할 수 있습니다.");

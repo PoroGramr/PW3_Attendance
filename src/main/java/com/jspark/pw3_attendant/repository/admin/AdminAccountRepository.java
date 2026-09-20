@@ -10,6 +10,10 @@ public interface AdminAccountRepository extends JpaRepository<AdminAccount, Long
 
     Optional<AdminAccount> findByUsername(String username);
 
+    Optional<AdminAccount> findByEmail(String email);
+
+    List<AdminAccount> findAllByPhone(String phone);
+
     boolean existsByUsername(String username);
 
     boolean existsByEmail(String email);
