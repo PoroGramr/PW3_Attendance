@@ -234,6 +234,45 @@ http://localhost:8080/swagger-ui/index.html
 | `GET` | `/api/attendances/year/{schoolYear}/date/{date}` | 특정 학년도/일자 전체 출석 조회 |
 | `GET` | `/api/attendances/classrooms/{classRoomId}/date/{date}` | 특정 반/일자 출석 조회 |
 
+#### 🔄 Acts29 출석 동기화 (`/api/integrations/acts29`)
+
+관리자 또는 슈퍼어드민 JWT가 필요합니다. 요청 본문을 생략하거나 `dryRun`을 `true`로 보내면 원격 데이터는 변경하지 않고 학생 매칭 및 변경 예정 내역만 반환합니다.
+
+```http
+POST /api/integrations/acts29/attendances/{date}/sync
+```
+
+Dry-run:
+
+```json
+{
+  "dryRun": true,
+  "className": "고1-2"
+}
+```
+
+실제 반영 시에는 경로 날짜와 같은 `confirmDate`가 필요합니다. 학생 매칭 실패가 있으면 기본적으로 `409 Conflict`로 중단하며, 불일치 학생을 제외하고 반영하려는 경우에만 `allowPartial`을 명시적으로 활성화합니다.
+
+```json
+{
+  "dryRun": false,
+  "allowPartial": false,
+  "confirmDate": "2026-10-04",
+  "className": "고1-2"
+}
+```
+
+`className`을 생략하면 해당 학년도 전체, 지정하면 해당 반 학생만 동기화합니다. 상태 변환은 `ATTEND`, `LATE`를 출석(`Y`)으로, `ABSENT`, `OTHER`, `UNCHECKED`를 결석(`N`)으로 처리합니다. 학생은 이름과 생년월일로 매칭하며, 동명이인이나 불일치가 있으면 dry-run 응답의 `matchIssues`에 포함됩니다.
+
+필수 환경 변수:
+
+```bash
+ACTS29_USER_ID=<통합인증 이메일>
+ACTS29_PASSWORD=<통합인증 비밀번호>
+```
+
+로컬에 설치된 Chrome을 사용해야 한다면 `ACTS29_BROWSER_CHANNEL=chrome`을 추가할 수 있습니다. Docker 이미지는 `build.gradle`의 Playwright 버전과 일치하는 브라우저 런타임을 포함합니다.
+
 #### 🎂 생일 관리 (`/api/birthday`)
 
 | Method | Endpoint | Description |

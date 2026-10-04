@@ -26,6 +26,8 @@ services:
     image: ${DOCKER_IMAGE_NAME}:latest
     container_name: pw3-attendant-container # 컨테이너 이름 지정
     restart: always
+    # Chromium의 공유 메모리 부족으로 인한 비정상 종료 방지
+    ipc: host
     depends_on:
       - db # 'db' 서비스가 시작된 후에 'app' 서비스가 시작되도록 보장
     ports:

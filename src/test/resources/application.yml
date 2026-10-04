@@ -43,6 +43,13 @@ app:
     resend-interval: 1m
     max-attempts: 5
     mail-from: test@example.com
+  acts29:
+    user-id: test@example.com
+    password: test-password
+    base-url: https://acts29.example.test/child_ecare
+    headless: true
+    browser-channel: ""
+    timeout: 5s
 
 coolsms:
   api:
