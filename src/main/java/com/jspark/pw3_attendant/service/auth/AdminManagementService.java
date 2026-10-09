@@ -5,11 +5,15 @@ import com.jspark.pw3_attendant.domain.admin.AdminAccount;
 import com.jspark.pw3_attendant.domain.admin.AdminRole;
 import com.jspark.pw3_attendant.domain.admin.ApprovalStatus;
 import com.jspark.pw3_attendant.repository.admin.AdminAccountRepository;
+import com.jspark.pw3_attendant.repository.admin.AdminAccountRecoveryRepository;
+import com.jspark.pw3_attendant.repository.admin.AdminRefreshTokenRepository;
+import java.time.LocalDateTime;
 import com.jspark.pw3_attendant.service.auth.dto.AdminAccountResponse;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
@@ -17,6 +21,27 @@ import org.springframework.transaction.annotation.Transactional;
 public class AdminManagementService {
 
     private final AdminAccountRepository adminAccountRepository;
+    private final AdminRefreshTokenRepository refreshTokenRepository;
+    private final AdminAccountRecoveryRepository recoveryRepository;
+    private final PasswordEncoder passwordEncoder;
+
+    @Transactional
+    public void resetPassword(Long targetId, Long superAdminId, String newPassword) {
+        requireSuperAdmin(superAdminId);
+        AdminAccount target = adminAccountRepository.findById(targetId)
+                .orElseThrow(() -> notFound(targetId));
+        if (target.getRole() != AdminRole.ADMIN) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_PASSWORD_RESET_TARGET",
+                    "일반 관리자 계정만 비밀번호를 초기화할 수 있습니다.");
+        }
+        target.changePassword(passwordEncoder.encode(newPassword));
+        // Refresh-token bulk revocation clears the persistence context.
+        // Flush first so the password change cannot be detached and lost.
+        adminAccountRepository.saveAndFlush(target);
+        LocalDateTime now = LocalDateTime.now();
+        refreshTokenRepository.revokeAllByAdminId(targetId, now);
+        recoveryRepository.consumeUnusedPasswordResets(targetId, now);
+    }
 
     @Transactional(readOnly = true)
     public List<AdminAccountResponse> findByStatus(ApprovalStatus status) {

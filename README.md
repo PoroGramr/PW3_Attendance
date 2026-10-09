@@ -520,6 +520,25 @@ ACCOUNT_RECOVERY_MAX_ATTEMPTS=5
 | GET | `/api/super-admin/admins?status=PENDING` | 슈퍼어드민 |
 | PATCH | `/api/super-admin/admins/{id}/approve` | 슈퍼어드민 |
 | PATCH | `/api/super-admin/admins/{id}/reject` | 슈퍼어드민 |
+| POST | `/api/super-admin/admins/{id}/password-reset` | 승인된 슈퍼어드민, 일반 관리자 비밀번호 초기화 |
+
+#### 슈퍼어드민의 관리자 비밀번호 초기화
+
+```http
+POST /api/super-admin/admins/{id}/password-reset
+Authorization: Bearer <SUPER_ADMIN_ACCESS_TOKEN>
+Content-Type: application/json
+
+{"newPassword": "new-password"}
+```
+
+- 대상은 일반 관리자(`ADMIN`)이며 슈퍼어드민 계정(본인 포함)은 초기화할 수 없습니다.
+- 새 비밀번호는 공백만으로 구성할 수 없고 8~72자 및 UTF-8 기준 최대 72바이트여야 합니다. BCrypt 해시로 저장하며 평문이나 해시는 응답하지 않습니다.
+- 성공 시 `204 No Content`를 반환합니다. 미인증 `401`, 권한 부족 `403`, 대상 없음 `404`, 입력값 오류/슈퍼어드민 대상 `400`입니다.
+- 비밀번호 변경, 해당 계정의 모든 Refresh Token 폐기, 미사용 비밀번호 복구 인증번호 폐기는 하나의 트랜잭션으로 처리합니다.
+- 대상의 승인 상태는 바뀌지 않습니다. 대기·거절 계정은 초기화 후에도 승인 전에는 로그인할 수 없습니다.
+- 기존 Access Token은 만료까지 유효합니다(기본 15분). 즉시 Access Token 차단이나 최초 로그인 시 비밀번호 변경 강제는 제공하지 않습니다.
+- 새 비밀번호는 슈퍼어드민이 지정하며 문자/메일 자동 발송은 하지 않습니다. 사용자에게 안전한 별도 채널로 전달하세요.
 
 ### 학생·교사 얼굴 사진
 
