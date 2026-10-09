@@ -34,6 +34,9 @@ spring:
       mail:
         smtp:
           auth: ${MAIL_SMTP_AUTH:true}
+          connectiontimeout: 5000
+          timeout: 5000
+          writetimeout: 5000
           starttls:
             enable: ${MAIL_SMTP_STARTTLS_ENABLE:true}
 
@@ -48,6 +51,8 @@ spring:
 
 app:
   qr-url-base: ${QR_URL_BASE}
+  signup-notification:
+    recipient: ${SIGNUP_NOTIFICATION_EMAIL:pjs9177@naver.com}
   jwt:
     secret: ${JWT_SECRET}
     access-token-validity: ${JWT_ACCESS_TOKEN_VALIDITY:15m}
