@@ -1,6 +1,7 @@
 package com.jspark.pw3_attendant.service.integration.acts29;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
@@ -8,6 +9,9 @@ import static org.mockito.Mockito.verify;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.jspark.pw3_attendant.common.exception.ApiException;
+import com.jspark.pw3_attendant.domain.Attendance.Attendance;
+import com.jspark.pw3_attendant.domain.Attendance.Attendance.AttendanceStatus;
 import com.jspark.pw3_attendant.domain.Student.Student;
 import com.jspark.pw3_attendant.domain.StudentClass.StudentClass;
 import com.jspark.pw3_attendant.repository.Attendance.AttendanceRepository;
@@ -108,6 +112,71 @@ class Acts29AttendanceSyncServiceTest {
         assertThat(captor.getValue()).singleElement()
                 .extracting(Acts29StudentRecord::attendance)
                 .isEqualTo("N");
+    }
+
+    @Test
+    @DisplayName("양쪽 명단이 달라도 기본 동기화는 출석과 지각을 반영하고 원격 전용 학생은 보존한다")
+    void syncsMatchedAttendanceByDefaultWithDifferentRosters() {
+        StudentClass present = studentClass(1L, 10L, "출석학생", LocalDate.of(2010, 1, 2));
+        StudentClass late = studentClass(2L, 20L, "지각학생", LocalDate.of(2010, 2, 3));
+        StudentClass localOnly = studentClass(3L, 30L, "로컬전용", LocalDate.of(2010, 3, 4));
+        List<StudentClass> locals = List.of(present, late, localOnly);
+        Acts29StudentRecord remotePresent = remoteRecord(0, "10", "출석학생", "20100102", "N");
+        Acts29StudentRecord remoteLate = remoteRecord(1, "20", "지각학생", "20100203", "N");
+        Acts29StudentRecord remoteOnly = remoteRecord(2, "40", "원격전용", "20100405", "Y");
+        List<Acts29StudentRecord> before = List.of(remotePresent, remoteLate, remoteOnly);
+        given(studentClassRepository.findAllBySchoolYear(2026)).willReturn(locals);
+        given(attendanceRepository.findAllByStudentClassInAndDate(locals, DATE))
+                .willReturn(List.of(
+                        attendance(present, AttendanceStatus.ATTEND),
+                        attendance(late, AttendanceStatus.LATE),
+                        attendance(localOnly, AttendanceStatus.ATTEND)
+                ));
+        given(acts29Client.open(DATE, "전체", "전체")).willReturn(session);
+        given(session.fetchAttendance()).willReturn(before, before, List.of(
+                remotePresent.withAttendance("Y"), remoteLate.withAttendance("Y"), remoteOnly
+        ));
+
+        Acts29AttendanceSyncResponse response = service.sync(
+                DATE, new Acts29AttendanceSyncRequest(false, null, DATE, null)
+        );
+
+        assertThat(response.result()).isEqualTo("SYNCED");
+        assertThat(response.matchedCount()).isEqualTo(2);
+        assertThat(response.changedCount()).isEqualTo(2);
+        assertThat(response.unmatchedTargetCount()).isEqualTo(1);
+        assertThat(response.matchIssues()).singleElement()
+                .satisfies(issue -> assertThat(issue.studentId()).isEqualTo(30L));
+        ArgumentCaptor<List<Acts29StudentRecord>> captor = ArgumentCaptor.forClass(List.class);
+        verify(session).saveAttendance(captor.capture());
+        assertThat(captor.getValue()).extracting(Acts29StudentRecord::attendance)
+                .containsExactly("Y", "Y", "Y");
+        assertThat(captor.getValue().get(2)).isEqualTo(remoteOnly);
+    }
+
+    @Test
+    @DisplayName("allowPartial을 false로 명시하면 매칭 실패 시 저장을 중단한다")
+    void explicitStrictModeBlocksUnmatchedStudents() {
+        StudentClass local = studentClass(1L, 10L, "로컬전용", LocalDate.of(2010, 1, 2));
+        given(studentClassRepository.findAllBySchoolYear(2026)).willReturn(List.of(local));
+        given(attendanceRepository.findAllByStudentClassInAndDate(List.of(local), DATE))
+                .willReturn(List.of());
+        given(acts29Client.open(DATE, "전체", "전체")).willReturn(session);
+        given(session.fetchAttendance())
+                .willReturn(List.of(remoteRecord(0, "20", "원격전용", "20100203", "Y")));
+
+        assertThatThrownBy(() -> service.sync(
+                DATE, new Acts29AttendanceSyncRequest(false, false, DATE, null)
+        )).isInstanceOf(ApiException.class).hasMessageContaining("매칭 실패 또는 중복 학생");
+        verify(session, never()).saveAttendance(anyList());
+    }
+
+    private Attendance attendance(StudentClass studentClass, AttendanceStatus status) {
+        Attendance attendance = new Attendance();
+        attendance.setStudentClass(studentClass);
+        attendance.setDate(DATE);
+        attendance.setStatus(status);
+        return attendance;
     }
 
     private StudentClass studentClass(

@@ -9,7 +9,7 @@ public record Acts29AttendanceSyncRequest(
         String className
 ) {
     public static Acts29AttendanceSyncRequest defaults() {
-        return new Acts29AttendanceSyncRequest(true, false, null, null);
+        return new Acts29AttendanceSyncRequest(true, true, null, null);
     }
 
     public boolean isDryRun() {
@@ -17,6 +17,6 @@ public record Acts29AttendanceSyncRequest(
     }
 
     public boolean isPartialAllowed() {
-        return Boolean.TRUE.equals(allowPartial);
+        return !Boolean.FALSE.equals(allowPartial);
     }
 }

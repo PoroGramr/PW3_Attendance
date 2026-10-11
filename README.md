@@ -251,12 +251,12 @@ Dry-run:
 }
 ```
 
-실제 반영 시에는 경로 날짜와 같은 `confirmDate`가 필요합니다. 학생 매칭 실패가 있으면 기본적으로 `409 Conflict`로 중단하며, 불일치 학생을 제외하고 반영하려는 경우에만 `allowPartial`을 명시적으로 활성화합니다.
+실제 반영 시에는 경로 날짜와 같은 `confirmDate`가 필요합니다. 기본적으로 매칭된 로컬 학생의 출석 데이터를 우선 반영합니다(`allowPartial` 생략 또는 `true`). 로컬에만 있거나 중복 매칭된 학생은 건너뛰고 `matchIssues`에 표시하며, ACTS29에만 있는 학생의 기존 출석 상태는 유지합니다. `allowPartial: false`를 명시하면 매칭 실패가 있을 때 `409 Conflict`로 전체 반영을 중단합니다.
 
 ```json
 {
   "dryRun": false,
-  "allowPartial": false,
+  "allowPartial": true,
   "confirmDate": "2026-10-04",
   "className": "고1-2"
 }
