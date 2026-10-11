@@ -332,7 +332,9 @@ public class Acts29AttendanceSyncService {
     }
 
     private String normalizeName(String name) {
-        return name == null ? "" : name.replaceAll("\\s+", "").toLowerCase(Locale.ROOT);
+        return name == null ? "" : name.replaceAll("\\s+", "")
+                .replaceAll("(?<=[가-힣])[A-Za-z]+$", "")
+                .toLowerCase(Locale.ROOT);
     }
 
     private String normalizeScope(String className) {

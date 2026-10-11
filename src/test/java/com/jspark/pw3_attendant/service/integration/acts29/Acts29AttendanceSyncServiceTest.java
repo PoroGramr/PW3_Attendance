@@ -24,6 +24,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -168,6 +170,56 @@ class Acts29AttendanceSyncServiceTest {
         assertThatThrownBy(() -> service.sync(
                 DATE, new Acts29AttendanceSyncRequest(false, false, DATE, null)
         )).isInstanceOf(ApiException.class).hasMessageContaining("매칭 실패 또는 중복 학생");
+        verify(session, never()).saveAttendance(anyList());
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"김하윤A", "김하윤b", " 김 하윤 AB "})
+    @DisplayName("이름 끝 영문 구분자를 제거하고 생년월일로 동명이인을 구분해 반영한다")
+    void matchesAlphabetSuffixByBirth(String localName) {
+        StudentClass local = studentClass(1L, 10L, localName, LocalDate.of(2010, 1, 2));
+        Acts29StudentRecord target = remoteRecord(0, "10", "김하윤", "20100102", "N");
+        Acts29StudentRecord other = remoteRecord(1, "20", "김하윤", "20100203", "N");
+        List<Acts29StudentRecord> before = List.of(target, other);
+        given(studentClassRepository.findAllBySchoolYear(2026)).willReturn(List.of(local));
+        given(attendanceRepository.findAllByStudentClassInAndDate(List.of(local), DATE))
+                .willReturn(List.of(attendance(local, AttendanceStatus.ATTEND)));
+        given(acts29Client.open(DATE, "전체", "전체")).willReturn(session);
+        given(session.fetchAttendance()).willReturn(before, before, List.of(target.withAttendance("Y"), other));
+
+        Acts29AttendanceSyncResponse response = service.sync(
+                DATE, new Acts29AttendanceSyncRequest(false, null, DATE, null)
+        );
+
+        assertThat(response.matchedCount()).isEqualTo(1);
+        assertThat(response.matchIssues()).isEmpty();
+        ArgumentCaptor<List<Acts29StudentRecord>> captor = ArgumentCaptor.forClass(List.class);
+        verify(session).saveAttendance(captor.capture());
+        assertThat(captor.getValue()).extracting(Acts29StudentRecord::attendance)
+                .containsExactly("Y", "N");
+        assertThat(local.getStudent().getName()).isEqualTo(localName);
+        assertThat(captor.getValue().get(0).name()).isEqualTo("김하윤");
+    }
+
+    @Test
+    @DisplayName("영문 구분자 제거 후 두 로컬 학생의 이름과 생년월일이 같으면 중복으로 건너뛴다")
+    void skipsDuplicateLocalsAfterRemovingSuffix() {
+        StudentClass first = studentClass(1L, 10L, "김하윤A", LocalDate.of(2010, 1, 2));
+        StudentClass second = studentClass(2L, 20L, "김하윤B", LocalDate.of(2010, 1, 2));
+        List<StudentClass> locals = List.of(first, second);
+        given(studentClassRepository.findAllBySchoolYear(2026)).willReturn(locals);
+        given(attendanceRepository.findAllByStudentClassInAndDate(locals, DATE))
+                .willReturn(List.of(attendance(first, AttendanceStatus.ATTEND), attendance(second, AttendanceStatus.LATE)));
+        given(acts29Client.open(DATE, "전체", "전체")).willReturn(session);
+        given(session.fetchAttendance()).willReturn(List.of(remoteRecord(0, "10", "김하윤", "20100102", "N")));
+
+        Acts29AttendanceSyncResponse response = service.sync(
+                DATE, new Acts29AttendanceSyncRequest(false, null, DATE, null)
+        );
+
+        assertThat(response.result()).isEqualTo("NO_CHANGES");
+        assertThat(response.matchedCount()).isZero();
+        assertThat(response.matchIssues()).hasSize(2);
         verify(session, never()).saveAttendance(anyList());
     }
 
