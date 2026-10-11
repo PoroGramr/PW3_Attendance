@@ -25,6 +25,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
@@ -35,6 +36,7 @@ public class AuthService {
     private final AdminRefreshTokenRepository refreshTokenRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenService jwtTokenService;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Transactional
     public AdminAccountResponse signup(SignupRequest request) {
@@ -55,7 +57,10 @@ public class AuthService {
                 normalizePhone(request.phone())
         );
         try {
-            return AdminAccountResponse.from(adminAccountRepository.saveAndFlush(account));
+            AdminAccount saved = adminAccountRepository.saveAndFlush(account);
+            eventPublisher.publishEvent(new AdminSignupRequested(saved.getId(), saved.getUsername(),
+                    saved.getName(), saved.getEmail(), saved.getPhone(), LocalDateTime.now()));
+            return AdminAccountResponse.from(saved);
         } catch (DataIntegrityViolationException exception) {
             throw new ApiException(
                     HttpStatus.CONFLICT,

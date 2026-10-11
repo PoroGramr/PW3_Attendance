@@ -8,6 +8,7 @@ import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.repository.query.Param;
 
 public interface AdminAccountRecoveryRepository extends JpaRepository<AdminAccountRecovery, Long> {
@@ -26,4 +27,10 @@ public interface AdminAccountRecoveryRepository extends JpaRepository<AdminAccou
             RecoveryPurpose purpose);
 
     void deleteAllByExpiresAtBefore(LocalDateTime threshold);
+
+    @Modifying
+    @Query("update AdminAccountRecovery r set r.consumedAt = :now where r.admin.id = :adminId "
+            + "and r.purpose = com.jspark.pw3_attendant.domain.admin.RecoveryPurpose.PASSWORD_RESET "
+            + "and r.consumedAt is null")
+    int consumeUnusedPasswordResets(@Param("adminId") Long adminId, @Param("now") LocalDateTime now);
 }

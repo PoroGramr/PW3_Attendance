@@ -502,6 +502,24 @@ ACCOUNT_RECOVERY_MAX_ATTEMPTS=5
 
 문자 발송은 기존 `COOLSMS_API_KEY`, `COOLSMS_SECRET_KEY`, `COOLSMS_SENDER_NUMBER` 설정을 사용합니다.
 
+#### 회원가입 요청 알림 메일
+
+`POST /api/auth/signup`으로 신규 관리자 가입이 성공하고 DB 트랜잭션이 커밋되면
+슈퍼어드민에게 승인 요청 메일을 발송합니다. 기본 수신자는 `pjs9177@naver.com`이며
+환경 변수로 변경할 수 있습니다.
+
+```bash
+SIGNUP_NOTIFICATION_EMAIL=pjs9177@naver.com
+```
+
+기존 SMTP 설정(`MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_FROM`)을
+공유합니다. 수신 주소는 발신 계정이 아니므로, 실제 발송에는 SMTP 발신 인증 정보가 필요합니다.
+메일에는 계정 ID, 아이디, 이름, 이메일, 전화번호와 요청 시각을 포함하며 비밀번호와 해시는
+포함하지 않습니다. 가입 실패·중복·DB 롤백 시에는 발송하지 않습니다.
+메일 발송 실패 시 가입은 그대로 완료되고 서버에 계정 ID와 오류 종류만 기록합니다.
+현재는 자동 재시도/발송 큐 없이 커밋 이후 동기 발송하며 SMTP 연결·읽기·쓰기 제한은 각 5초입니다.
+거절된 계정의 재신청 및 승인·거절 결과 알림, 문자 알림은 이번 기능에 포함되지 않습니다.
+
 주요 엔드포인트:
 
 | 메서드 | 경로 | 권한 |
@@ -520,6 +538,25 @@ ACCOUNT_RECOVERY_MAX_ATTEMPTS=5
 | GET | `/api/super-admin/admins?status=PENDING` | 슈퍼어드민 |
 | PATCH | `/api/super-admin/admins/{id}/approve` | 슈퍼어드민 |
 | PATCH | `/api/super-admin/admins/{id}/reject` | 슈퍼어드민 |
+| POST | `/api/super-admin/admins/{id}/password-reset` | 승인된 슈퍼어드민, 일반 관리자 비밀번호 초기화 |
+
+#### 슈퍼어드민의 관리자 비밀번호 초기화
+
+```http
+POST /api/super-admin/admins/{id}/password-reset
+Authorization: Bearer <SUPER_ADMIN_ACCESS_TOKEN>
+Content-Type: application/json
+
+{"newPassword": "new-password"}
+```
+
+- 대상은 일반 관리자(`ADMIN`)이며 슈퍼어드민 계정(본인 포함)은 초기화할 수 없습니다.
+- 새 비밀번호는 공백만으로 구성할 수 없고 8~72자 및 UTF-8 기준 최대 72바이트여야 합니다. BCrypt 해시로 저장하며 평문이나 해시는 응답하지 않습니다.
+- 성공 시 `204 No Content`를 반환합니다. 미인증 `401`, 권한 부족 `403`, 대상 없음 `404`, 입력값 오류/슈퍼어드민 대상 `400`입니다.
+- 비밀번호 변경, 해당 계정의 모든 Refresh Token 폐기, 미사용 비밀번호 복구 인증번호 폐기는 하나의 트랜잭션으로 처리합니다.
+- 대상의 승인 상태는 바뀌지 않습니다. 대기·거절 계정은 초기화 후에도 승인 전에는 로그인할 수 없습니다.
+- 기존 Access Token은 만료까지 유효합니다(기본 15분). 즉시 Access Token 차단이나 최초 로그인 시 비밀번호 변경 강제는 제공하지 않습니다.
+- 새 비밀번호는 슈퍼어드민이 지정하며 문자/메일 자동 발송은 하지 않습니다. 사용자에게 안전한 별도 채널로 전달하세요.
 
 ### 학생·교사 얼굴 사진
 
