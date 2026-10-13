@@ -5,6 +5,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -26,10 +28,12 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.http.HttpStatus;
 
 @ExtendWith(MockitoExtension.class)
 class Acts29AttendanceSyncServiceTest {
@@ -152,8 +156,9 @@ class Acts29AttendanceSyncServiceTest {
         ArgumentCaptor<List<Acts29StudentRecord>> captor = ArgumentCaptor.forClass(List.class);
         verify(session).saveAttendance(captor.capture());
         assertThat(captor.getValue()).extracting(Acts29StudentRecord::attendance)
-                .containsExactly("Y", "Y", "Y");
-        assertThat(captor.getValue().get(2)).isEqualTo(remoteOnly);
+                .containsExactly("Y", "Y");
+        assertThat(captor.getValue()).doesNotContain(remoteOnly);
+        assertThat(response.remotePresentAfter()).isEqualTo(3);
     }
 
     @Test
@@ -196,7 +201,7 @@ class Acts29AttendanceSyncServiceTest {
         ArgumentCaptor<List<Acts29StudentRecord>> captor = ArgumentCaptor.forClass(List.class);
         verify(session).saveAttendance(captor.capture());
         assertThat(captor.getValue()).extracting(Acts29StudentRecord::attendance)
-                .containsExactly("Y", "N");
+                .containsExactly("Y");
         assertThat(local.getStudent().getName()).isEqualTo(localName);
         assertThat(captor.getValue().get(0).name()).isEqualTo("김하윤");
     }
@@ -221,6 +226,68 @@ class Acts29AttendanceSyncServiceTest {
         assertThat(response.matchedCount()).isZero();
         assertThat(response.matchIssues()).hasSize(2);
         verify(session, never()).saveAttendance(anyList());
+    }
+
+    @Test
+    @DisplayName("일괄 저장 일부 반영 후 500이면 미반영 학생만 재시도하고 실패 학생 뒤의 학생도 반영한다")
+    void retriesOutstandingStudentsAfterPartialBulkFailure() {
+        StudentClass first = studentClass(1L, 10L, "기반영학생", LocalDate.of(2010, 1, 2));
+        StudentClass bad = studentClass(2L, 20L, "저장실패", LocalDate.of(2010, 2, 3));
+        StudentClass good = studentClass(3L, 30L, "재시도학생", LocalDate.of(2010, 3, 4));
+        List<StudentClass> locals = List.of(first, bad, good);
+        // Real ACTS29 records can have no user_id; seq still identifies them.
+        Acts29StudentRecord firstRemote = remoteRecord(0, "", "기반영학생", "20100102", "N");
+        Acts29StudentRecord badRemote = remoteRecord(1, "", "저장실패", "20100203", "N");
+        Acts29StudentRecord goodRemote = remoteRecord(2, "", "재시도학생", "20100304", "N");
+        List<Acts29StudentRecord> before = List.of(firstRemote, badRemote, goodRemote);
+        List<Acts29StudentRecord> partlySaved = List.of(firstRemote.withAttendance("Y"), badRemote, goodRemote);
+        List<Acts29StudentRecord> after = List.of(firstRemote.withAttendance("Y"), badRemote, goodRemote.withAttendance("Y"));
+        given(studentClassRepository.findAllBySchoolYear(2026)).willReturn(locals);
+        given(attendanceRepository.findAllByStudentClassInAndDate(locals, DATE))
+                .willReturn(List.of(attendance(first, AttendanceStatus.ATTEND), attendance(bad, AttendanceStatus.LATE),
+                        attendance(good, AttendanceStatus.LATE)));
+        given(acts29Client.open(DATE, "전체", "전체")).willReturn(session);
+        given(session.fetchAttendance()).willReturn(before, before, partlySaved, partlySaved, after, after);
+        ApiException error = new ApiException(HttpStatus.BAD_GATEWAY, "ACTS29_REQUEST_FAILED", "저장 실패 (HTTP 500)");
+        doThrow(error).when(session).saveAttendance(List.of(firstRemote.withAttendance("Y"),
+                badRemote.withAttendance("Y"), goodRemote.withAttendance("Y")));
+        doThrow(error).when(session).saveAttendance(List.of(badRemote.withAttendance("Y")));
+
+        Acts29AttendanceSyncResponse response = service.sync(
+                DATE, new Acts29AttendanceSyncRequest(false, null, DATE, null)
+        );
+
+        assertThat(response.result()).isEqualTo("PARTIALLY_SYNCED");
+        assertThat(response.matchedCount()).isEqualTo(2);
+        assertThat(response.changedCount()).isEqualTo(2);
+        assertThat(response.remotePresentAfter()).isEqualTo(2);
+        assertThat(response.matchIssues()).singleElement().satisfies(issue -> {
+            assertThat(issue.studentId()).isEqualTo(20L);
+            assertThat(issue.reason()).contains("저장에 실패");
+        });
+        verify(session, never()).saveAttendance(List.of(firstRemote.withAttendance("Y")));
+        verify(session).saveAttendance(List.of(badRemote.withAttendance("Y")));
+        verify(session).saveAttendance(List.of(goodRemote.withAttendance("Y")));
+    }
+
+    @ParameterizedTest
+    @CsvSource({"false, 500", "true, 503"})
+    @DisplayName("엄격 모드 또는 500 이외의 오류는 학생별 재시도 없이 반환한다")
+    void doesNotRetryStrictModeOrOtherErrors(boolean allowPartial, int status) {
+        StudentClass local = studentClass(1L, 10L, "테스트학생", LocalDate.of(2010, 1, 2));
+        Acts29StudentRecord before = remoteRecord(0, "10", "테스트학생", "20100102", "N");
+        given(studentClassRepository.findAllBySchoolYear(2026)).willReturn(List.of(local));
+        given(attendanceRepository.findAllByStudentClassInAndDate(List.of(local), DATE))
+                .willReturn(List.of(attendance(local, AttendanceStatus.ATTEND)));
+        given(acts29Client.open(DATE, "전체", "전체")).willReturn(session);
+        given(session.fetchAttendance()).willReturn(List.of(before));
+        ApiException error = new ApiException(HttpStatus.BAD_GATEWAY, "ACTS29_REQUEST_FAILED", "실패 (HTTP " + status + ")");
+        doThrow(error).when(session).saveAttendance(anyList());
+
+        assertThatThrownBy(() -> service.sync(DATE,
+                new Acts29AttendanceSyncRequest(false, allowPartial, DATE, null))).isSameAs(error);
+        verify(session, times(2)).fetchAttendance();
+        verify(session, times(1)).saveAttendance(anyList());
     }
 
     private Attendance attendance(StudentClass studentClass, AttendanceStatus status) {

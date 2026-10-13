@@ -78,7 +78,7 @@ def target_url(day: str, grade: str, class_name: str) -> str:
             "act": "choolsukUpdate",
             "dlb": grade,
             "soon": class_name,
-            "bogoday": day,
+            "bogoday": date_type.fromisoformat(day).strftime("%Y%m%d"),
         }
     )
     return f"{BASE_URL}/child/choolsuk.do?{query}"
@@ -158,7 +158,7 @@ def authenticate(context: BrowserContext, page: Page, url: str, user_id: str, pa
 def fetch_rows(context: BrowserContext, day: str, grade: str, class_name: str) -> list[dict]:
     response = context.request.post(
         LIST_URL,
-        form={"dlb": grade, "soon": class_name, "bogoday": day},
+        form={"dlb": grade, "soon": class_name, "bogoday": date_type.fromisoformat(day).strftime("%Y%m%d")},
         headers={"X-Requested-With": "XMLHttpRequest"},
         timeout=60_000,
     )
@@ -187,6 +187,16 @@ def state_signature(rows: list[dict]) -> list[tuple]:
 def payload_digest(rows: list[dict]) -> str:
     canonical = json.dumps(rows, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()[:16]
+
+
+def save_rows(rows: list[dict]) -> list[dict]:
+    normalized = [dict(row) for row in rows]
+    for row in normalized:
+        for field in ("bogoday", "pass_day"):
+            value = row.get(field)
+            if isinstance(value, str) and re.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}", value):
+                row[field] = value.replace("-", "")
+    return normalized
 
 
 def main() -> int:
@@ -230,9 +240,9 @@ def main() -> int:
         response = context.request.post(
             SAVE_URL,
             form={
-                "list": json.dumps(rows_before, ensure_ascii=False, separators=(",", ":")),
+                "list": json.dumps(save_rows(rows_before), ensure_ascii=False, separators=(",", ":")),
                 "sau_arr": ":".join(reasons),
-                "bogoday": args.date,
+                "bogoday": date_type.fromisoformat(args.date).strftime("%Y%m%d"),
                 "dlb": args.grade,
                 "soon": args.class_name,
             },

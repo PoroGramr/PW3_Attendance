@@ -264,6 +264,10 @@ Dry-run:
 
 `className`을 생략하면 해당 학년도 전체, 지정하면 해당 반 학생만 동기화합니다. 상태 변환은 `ATTEND`, `LATE`를 출석(`Y`)으로, `ABSENT`, `OTHER`, `UNCHECKED`를 결석(`N`)으로 처리합니다. 학생은 이름과 생년월일로 매칭하며, 비교 시 이름의 공백과 한글 이름 끝의 영문 구분자(A, B 등)를 제거합니다. 예를 들어 `김하윤A`와 `김하윤`은 생년월일이 같으면 매칭됩니다. 저장된 이름은 변경하지 않으며, 정규화 후 중복 매칭이나 불일치가 있으면 응답의 `matchIssues`에 포함됩니다.
 
+API 경로와 `confirmDate`는 `yyyy-MM-dd` 형식을 사용하고, ACTS29에 전달하는 `bogoday`와 학생 JSON의 날짜 필드(`bogoday`, `pass_day`)는 내부에서 `yyyyMMdd`로 변환합니다. ACTS29는 실제 출석 변경 시 날짜를 숫자로 처리하므로 하이픈이 포함된 날짜를 보내면 HTTP 500(`NumberFormatException`)이 발생합니다. 기존 값을 그대로 재저장하는 테스트만으로는 이 오류가 드러나지 않을 수 있습니다.
+
+실제 저장 요청에는 출석 상태가 바뀌는 학생만 포함합니다. ACTS29의 일괄 저장이 HTTP 500으로 실패하면, 기본 부분 반영에서는 재조회 후 미반영 학생만 개별 재시도합니다. 저장 실패 학생은 `matchIssues`에 표시하며 결과는 `PARTIALLY_SYNCED`입니다. `changedCount`는 실제 반영에 성공한 변경 건수이고 `remotePresentAfter`는 재조회한 실제 출석 수입니다. 프론트는 `PARTIALLY_SYNCED`일 때 저장 실패 내역도 표시해야 합니다. `allowPartial: false`이면 저장 오류를 그대로 반환합니다. ACTS29는 HTTP 500 응답 전에도 일부 학생을 저장할 수 있으므로 오류 응답이 전체 미반영을 의미하지는 않습니다.
+
 필수 환경 변수:
 
 ```bash

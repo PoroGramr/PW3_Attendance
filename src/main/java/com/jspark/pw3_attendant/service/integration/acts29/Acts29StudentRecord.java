@@ -51,7 +51,15 @@ public record Acts29StudentRecord(
     }
 
     ObjectNode payloadCopy() {
-        return raw.deepCopy();
+        ObjectNode payload = raw.deepCopy();
+        // ACTS29 returns ISO dates but parses these fields as integers on save.
+        for (String field : new String[]{"bogoday", "pass_day"}) {
+            String value = payload.path(field).asText("");
+            if (value.matches("[0-9]{4}-[0-9]{2}-[0-9]{2}")) {
+                payload.put(field, value.replace("-", ""));
+            }
+        }
+        return payload;
     }
 
     private static String text(ObjectNode node, String field) {

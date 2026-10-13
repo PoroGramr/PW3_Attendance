@@ -20,6 +20,7 @@ import com.microsoft.playwright.options.WaitUntilState;
 import java.net.URI;
 import java.time.Duration;
 import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -175,7 +176,7 @@ public class PlaywrightActs29Client implements Acts29Client {
                 .queryParam("act", "choolsukUpdate")
                 .queryParam("dlb", grade)
                 .queryParam("soon", className)
-                .queryParam("bogoday", date)
+                .queryParam("bogoday", date.format(DateTimeFormatter.BASIC_ISO_DATE))
                 .build()
                 .encode()
                 .toUriString();
@@ -264,7 +265,7 @@ public class PlaywrightActs29Client implements Acts29Client {
             FormData form = FormData.create()
                     .set("dlb", grade)
                     .set("soon", className)
-                    .set("bogoday", date.toString());
+                    .set("bogoday", date.format(DateTimeFormatter.BASIC_ISO_DATE));
 
             APIResponse response = null;
             try {
@@ -335,7 +336,7 @@ public class PlaywrightActs29Client implements Acts29Client {
             FormData form = FormData.create()
                     .set("list", listPayload.toString())
                     .set("sau_arr", String.join(":", reasons))
-                    .set("bogoday", date.toString())
+                    .set("bogoday", date.format(DateTimeFormatter.BASIC_ISO_DATE))
                     .set("dlb", grade)
                     .set("soon", className);
 
