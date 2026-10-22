@@ -5,6 +5,9 @@ DEPLOY_DIR="${PW3_DEPLOY_DIR:-/home/ppp9177/pw3-production}"
 HOST=pw3.porogramr.com
 compose=(docker compose -f compose.production.yml)
 image=pw3-production-app:latest
+maintenance_dir="${PW3_HEALOPS_MAINTENANCE_DIR:-/home/ppp9177/healops/maintenance}"
+maintenance_file="$maintenance_dir/pw3-attendance"
+marker_owned=false
 backup_tag=""
 previous_image_id=""
 promotion_started=false
@@ -62,6 +65,7 @@ on_exit() {
   elif [ -n "$backup_tag" ]; then
     rm -f .env.previous app.jar.previous compose.production.yml.previous
   fi
+  if [ "$marker_owned" = true ]; then rm -f "$maintenance_file"; fi
   exit "$status"
 }
 
@@ -88,6 +92,8 @@ if grep -Eq '^SPRING_DATASOURCE_URL=jdbc:mysql://(db|localhost|127\.0\.0\.1|atte
 fi
 # Refuse deployment without a known-good image, artifact and env to restore.
 test -f .env && test -f app.jar && test -f compose.production.yml
+test -d "$maintenance_dir"
+test ! -e "$maintenance_file"
 [ "$(docker inspect -f '{{ index .Config.Labels "com.docker.compose.project" }}' pw3-attendance)" = "pw3-production" ]
 [ "$(docker inspect -f '{{ index .Config.Labels "com.docker.compose.service" }}' pw3-attendance)" = "app" ]
 docker image inspect "$image" >/dev/null 2>&1
@@ -112,6 +118,11 @@ test -n "$jar"
 cp "$jar" app.jar
 "${compose[@]}" config --quiet
 "${compose[@]}" build app
+# The HealOps worker observes this read-only marker and drops deployment events.
+# Give it at least one poll before replacing the running container.
+(set -C; : > "$maintenance_file")
+marker_owned=true
+sleep 7
 promotion_started=true
 "${compose[@]}" up -d --remove-orphans
 if ! check_health; then
