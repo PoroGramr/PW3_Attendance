@@ -1,0 +1,34 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: pw3-attendance
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      TZ: Asia/Seoul
+    extra_hosts:
+      - s3.porogramr.com:172.19.0.1
+    networks:
+      - attendance-db
+      - web
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=web
+      - traefik.http.routers.pw3.rule=Host(`pw3.porogramr.com`)
+      - traefik.http.routers.pw3.entrypoints=websecure
+      - traefik.http.routers.pw3.tls=true
+      - traefik.http.routers.pw3.tls.certresolver=letsencrypt
+      - traefik.http.services.pw3.loadbalancer.server.port=8080
+      - traefik.http.routers.pw3-http.rule=Host(`pw3.porogramr.com`)
+      - traefik.http.routers.pw3-http.entrypoints=web
+      - traefik.http.routers.pw3-http.middlewares=pw3-redirect
+      - traefik.http.middlewares.pw3-redirect.redirectscheme.scheme=https
+      - traefik.http.middlewares.pw3-redirect.redirectscheme.permanent=true
+networks:
+  attendance-db:
+    external: true
+    name: attendance-deploy_attendance-net
+  web:
+    external: true
