@@ -14,10 +14,10 @@
 `main`에 푸시하면 이 서버의 저장소 전용 GitHub Actions 러너(`pw3-deploy`)가 `scripts/deploy-production.sh`를 실행합니다. 이전 EC2/Docker Hub 배포는 더 이상 실행되지 않습니다. 수동 실행은 GitHub Actions의 **Deploy PW3 to home server → Run workflow**에서 가능합니다.
 
 - 공개 주소: https://pw3.porogramr.com (Traefik TLS, HTTP → HTTPS)
-- 서버 체크아웃: `/home/ppp9177/pw3-production`; `compose.production.yml`의 앱은 기존 서버 MySQL의 `attendance` 스키마 및 `web` 네트워크를 사용합니다. 기존 DB 컨테이너나 데이터 볼륨을 재생성하지 않습니다.
-- `.env`는 서버 체크아웃에만 두고 `.env.example`의 필수값을 채웁니다. CI 로그나 저장소에 비밀을 넣지 마세요. 실제 변경 전 DB 백업을 권장합니다.
-- 로컬 수동 배포: `bash scripts/deploy-production.sh`; 확인: `curl --resolve pw3.porogramr.com:443:127.0.0.1 https://pw3.porogramr.com/actuator/health`
-- 외부 서버의 기존 DB 데이터는 자동으로 이전되지 않습니다. 현재 서버의 `attendance` 데이터만 사용하며, 이전 서버 데이터가 필요하면 별도 이관 절차가 필요합니다.
+- 서버 체크아웃: `/home/ppp9177/pw3-production`; 앱은 기존 GitHub Actions Secret `PRODUCTION_ENV_FILE`에 있는 외부 DB 설정을 그대로 사용합니다. 서버의 기존 MySQL 네트워크/데이터 볼륨에는 연결하지 않습니다. Flyway 자동 마이그레이션은 운영 컨테이너에서 끕니다.
+- Actions가 배포할 때 Secret을 서버의 무시된 `.env` 파일로 안전하게 저장합니다. 저장소와 CI 로그에는 비밀을 넣지 마세요.
+- 수동 재실행: GitHub Actions의 **Deploy PW3 to home server → Run workflow**; 확인: `curl --resolve pw3.porogramr.com:443:127.0.0.1 https://pw3.porogramr.com/actuator/health`
+- 외부 DB 접근과 스키마 적합성은 기존 Secret의 설정에 좌우됩니다. DB 스키마 변경/데이터 이전은 이 배포에서 하지 않습니다.
 
 ## 📋 Table of Contents
 

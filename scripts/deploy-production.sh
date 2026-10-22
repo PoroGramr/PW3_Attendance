@@ -6,10 +6,20 @@ HOST=pw3.porogramr.com
 exec 9>"$DEPLOY_DIR/.deploy.lock"
 flock -n 9 || { echo 'Another PW3 deployment is in progress'; exit 1; }
 cd "$DEPLOY_DIR"
-test -f .env || { echo 'Missing production .env'; exit 1; }
-for key in SPRING_DATASOURCE_URL SPRING_DATASOURCE_USERNAME SPRING_DATASOURCE_PASSWORD JWT_SECRET MINIO_ENDPOINT MINIO_ACCESS_KEY MINIO_SECRET_KEY MAIL_HOST MAIL_USERNAME MAIL_PASSWORD; do
-  grep -q "^${key}=." .env || { echo "Missing production variable: $key"; exit 1; }
+# Reuse the existing Actions production secret, never the legacy host DB env.
+: "${PRODUCTION_ENV_FILE:?Missing GitHub Actions PRODUCTION_ENV_FILE secret}"
+umask 077
+trap 'rm -f "$DEPLOY_DIR/.env.next"' EXIT
+printf '%s\n' "$PRODUCTION_ENV_FILE" > .env.next
+unset PRODUCTION_ENV_FILE
+for key in SPRING_DATASOURCE_URL SPRING_DATASOURCE_USERNAME SPRING_DATASOURCE_PASSWORD; do
+  grep -q "^${key}=." .env.next || { echo "Missing production variable: $key"; exit 1; }
 done
+if grep -Eq '^SPRING_DATASOURCE_URL=jdbc:mysql://(db|localhost|127\.0\.0\.1|attendance_db)(:|/)' .env.next; then
+  echo 'Refusing to connect to the legacy local MySQL database'
+  exit 1
+fi
+mv .env.next .env
 
 git fetch --prune origin main
 git reset --hard origin/main

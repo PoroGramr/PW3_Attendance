@@ -8,10 +8,9 @@ services:
     env_file: .env
     environment:
       TZ: Asia/Seoul
-    extra_hosts:
-      - s3.porogramr.com:172.19.0.1
+      SPRING_FLYWAY_ENABLED: 'false'
+      SPRING_JPA_HIBERNATE_DDL_AUTO: validate
     networks:
-      - attendance-db
       - web
     labels:
       - traefik.enable=true
@@ -27,8 +26,5 @@ services:
       - traefik.http.middlewares.pw3-redirect.redirectscheme.scheme=https
       - traefik.http.middlewares.pw3-redirect.redirectscheme.permanent=true
 networks:
-  attendance-db:
-    external: true
-    name: attendance-deploy_attendance-net
   web:
     external: true
