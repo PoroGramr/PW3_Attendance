@@ -16,6 +16,8 @@ jobs:
     steps:
       - name: Checkout deployment scripts
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Test rollback control flow without Docker writes
+        run: python3 scripts/test_deploy_production.py
       - name: Deploy and verify
         env:
           PRODUCTION_ENV_FILE: ${{ secrets.PRODUCTION_ENV_FILE }}
