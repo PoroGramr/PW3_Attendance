@@ -4,6 +4,8 @@ HELP.md
 !.env.example
 build/
 app.jar
+app.jar.previous
+compose.production.yml.previous
 .deploy.lock
 !gradle/wrapper/gradle-wrapper.jar
 !**/src/main/**/build/
