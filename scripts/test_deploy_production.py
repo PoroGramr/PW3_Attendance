@@ -70,6 +70,11 @@ class DeploymentTest(unittest.TestCase):
             (root / ".env").write_text("PREVIOUS_ENV=true\n")
             (root / "app.jar").write_text("old-jar")
             (root / "compose.production.yml").write_text("previous-compose\n")
+            maintenance = root / "maintenance"
+            maintenance.mkdir()
+            marker = maintenance / "pw3-attendance"
+            if scenario == "preexisting-marker":
+                marker.write_text("operator-hold\n")
             if scenario == "preexisting-backup":
                 (root / ".env.previous").write_text("last-resort-backup\n")
             trace = root / "trace"
@@ -83,7 +88,8 @@ class DeploymentTest(unittest.TestCase):
             backup_id = root / "backup-id"
             backup_id.write_text("")
             env = {**os.environ, "PATH": f"{binary}:{os.environ['PATH']}",
-                   "PW3_DEPLOY_DIR": str(root), "TRACE": str(trace), "COUNTER": str(count),
+                   "PW3_DEPLOY_DIR": str(root), "PW3_HEALOPS_MAINTENANCE_DIR": str(maintenance),
+                   "TRACE": str(trace), "COUNTER": str(count),
                    "TAG_ID": str(tag_id), "RUNNING_ID": str(running_id),
                    "BACKUP_ID": str(backup_id), "NEW_ID": NEW,
                    "CASE": scenario, "GITHUB_RUN_ID": "fixture", "PW3_HEALTH_ATTEMPTS": "1",
@@ -97,7 +103,8 @@ class DeploymentTest(unittest.TestCase):
                     "compose": (root / "compose.production.yml").read_text(),
                     "trace": trace.read_text(), "tag": tag_id.read_text(),
                     "running": running_id.read_text(),
-                    "retained": (root / ".env.previous").exists()}
+                    "retained": (root / ".env.previous").exists(),
+                    "marker": marker.read_text() if marker.exists() else None}
 
     def test_success_promotes_candidate(self):
         s = self.run_case("success")
@@ -107,6 +114,7 @@ class DeploymentTest(unittest.TestCase):
         self.assertEqual(s["tag"], NEW)
         self.assertEqual(s["running"], NEW)
         self.assertFalse(s["retained"])
+        self.assertIsNone(s["marker"])
 
     def test_health_failure_restores_previous_image_env_jar_and_compose(self):
         s = self.run_case("fail")
@@ -118,6 +126,7 @@ class DeploymentTest(unittest.TestCase):
         self.assertEqual(s["tag"], OLD)
         self.assertEqual(s["running"], OLD)
         self.assertFalse(s["retained"])
+        self.assertIsNone(s["marker"])
 
     def test_build_failure_never_recreates_container(self):
         s = self.run_case("build-fail")
@@ -126,12 +135,20 @@ class DeploymentTest(unittest.TestCase):
         self.assertEqual(s["env"], "PREVIOUS_ENV=true\n")
         self.assertEqual(s["compose"], "previous-compose\n")
         self.assertNotIn(" up ", s["trace"])
+        self.assertIsNone(s["marker"])
 
     def test_failed_rollback_retains_local_backups(self):
         s = self.run_case("rollback-fail")
         self.assertNotEqual(s["result"].returncode, 0)
         self.assertIn("ROLLBACK FAILED", s["result"].stderr)
         self.assertTrue(s["retained"])
+        self.assertIsNone(s["marker"])
+
+    def test_preexisting_operator_marker_is_preserved(self):
+        s = self.run_case("preexisting-marker")
+        self.assertNotEqual(s["result"].returncode, 0)
+        self.assertEqual(s["marker"], "operator-hold\n")
+        self.assertNotIn("image tag", s["trace"])
 
     def test_preexisting_backup_is_never_overwritten_or_deleted(self):
         s = self.run_case("preexisting-backup")
