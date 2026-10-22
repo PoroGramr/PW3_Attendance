@@ -10,6 +10,10 @@ services:
       TZ: Asia/Seoul
       SPRING_FLYWAY_ENABLED: 'false'
       SPRING_JPA_HIBERNATE_DDL_AUTO: validate
+      MANAGEMENT_HEALTH_MAIL_ENABLED: 'false'
+      QR_URL_BASE: https://pw3.porogramr.com
+    extra_hosts:
+      - s3.porogramr.com:172.19.0.1
     networks:
       - web
     labels:

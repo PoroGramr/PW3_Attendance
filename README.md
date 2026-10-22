@@ -18,6 +18,7 @@
 - Actions가 배포할 때 Secret을 서버의 무시된 `.env` 파일로 안전하게 저장합니다. 저장소와 CI 로그에는 비밀을 넣지 마세요.
 - 수동 재실행: GitHub Actions의 **Deploy PW3 to home server → Run workflow**; 확인: `curl --resolve pw3.porogramr.com:443:127.0.0.1 https://pw3.porogramr.com/actuator/health`
 - 외부 DB 접근과 스키마 적합성은 기존 Secret의 설정에 좌우됩니다. DB 스키마 변경/데이터 이전은 이 배포에서 하지 않습니다.
+- 기존 Secret의 `MAIL_HOST=localhost`는 과거 배포 서버만의 SMTP 주소입니다. 이 서버에서 메일 서버를 설정하기 전까지 가입 알림/비밀번호 재설정 메일은 실패할 수 있습니다. 메일 연결은 배포용 앱 상태 검사에서 제외하지만 기능 자체는 별도 설정이 필요합니다.
 
 ## 📋 Table of Contents
 
