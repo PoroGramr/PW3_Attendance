@@ -323,7 +323,7 @@ public class PlaywrightActs29Client implements Acts29Client {
             List<String> reasons = new ArrayList<>(records.size());
             for (Acts29StudentRecord record : records) {
                 listPayload.add(record.payloadCopy());
-                reasons.add(record.absenceReason());
+                reasons.add(record.reasonForSave());
             }
             if (reasons.stream().anyMatch(reason -> reason.contains(":"))) {
                 throw new ApiException(

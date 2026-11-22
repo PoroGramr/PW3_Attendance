@@ -155,9 +155,9 @@ class Acts29AttendanceSyncServiceTest {
                 .satisfies(issue -> assertThat(issue.studentId()).isEqualTo(30L));
         ArgumentCaptor<List<Acts29StudentRecord>> captor = ArgumentCaptor.forClass(List.class);
         verify(session).saveAttendance(captor.capture());
-        assertThat(captor.getValue()).extracting(Acts29StudentRecord::attendance)
-                .containsExactly("Y", "Y");
-        assertThat(captor.getValue()).doesNotContain(remoteOnly);
+        // ACTS29 화면처럼 원격 전용 학생을 포함한 전체 명단을 원래 상태로 함께 전송한다.
+        assertThat(captor.getValue()).containsExactly(
+                remotePresent.withAttendance("Y"), remoteLate.withAttendance("Y"), remoteOnly);
         assertThat(response.remotePresentAfter()).isEqualTo(3);
     }
 
@@ -201,7 +201,7 @@ class Acts29AttendanceSyncServiceTest {
         ArgumentCaptor<List<Acts29StudentRecord>> captor = ArgumentCaptor.forClass(List.class);
         verify(session).saveAttendance(captor.capture());
         assertThat(captor.getValue()).extracting(Acts29StudentRecord::attendance)
-                .containsExactly("Y");
+                .containsExactly("Y", "N");
         assertThat(local.getStudent().getName()).isEqualTo(localName);
         assertThat(captor.getValue().get(0).name()).isEqualTo("김하윤");
     }
@@ -251,7 +251,8 @@ class Acts29AttendanceSyncServiceTest {
         ApiException error = new ApiException(HttpStatus.BAD_GATEWAY, "ACTS29_REQUEST_FAILED", "저장 실패 (HTTP 500)");
         doThrow(error).when(session).saveAttendance(List.of(firstRemote.withAttendance("Y"),
                 badRemote.withAttendance("Y"), goodRemote.withAttendance("Y")));
-        doThrow(error).when(session).saveAttendance(List.of(badRemote.withAttendance("Y")));
+        doThrow(error).when(session).saveAttendance(
+                List.of(firstRemote.withAttendance("Y"), badRemote.withAttendance("Y"), goodRemote));
 
         Acts29AttendanceSyncResponse response = service.sync(
                 DATE, new Acts29AttendanceSyncRequest(false, null, DATE, null)
@@ -265,9 +266,11 @@ class Acts29AttendanceSyncServiceTest {
             assertThat(issue.studentId()).isEqualTo(20L);
             assertThat(issue.reason()).contains("저장에 실패");
         });
-        verify(session, never()).saveAttendance(List.of(firstRemote.withAttendance("Y")));
-        verify(session).saveAttendance(List.of(badRemote.withAttendance("Y")));
-        verify(session).saveAttendance(List.of(goodRemote.withAttendance("Y")));
+        // 학생별 재시도도 최신 전체 명단에 해당 학생 변경만 적용해 전송한다.
+        verify(session).saveAttendance(List.of(firstRemote.withAttendance("Y"),
+                badRemote.withAttendance("Y"), goodRemote.withAttendance("Y")));
+        verify(session).saveAttendance(List.of(firstRemote.withAttendance("Y"), badRemote.withAttendance("Y"), goodRemote));
+        verify(session).saveAttendance(List.of(firstRemote.withAttendance("Y"), badRemote, goodRemote.withAttendance("Y")));
     }
 
     @ParameterizedTest

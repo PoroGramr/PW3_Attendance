@@ -85,7 +85,8 @@ public class Acts29AttendanceSyncService {
                     if (!plan.changes().isEmpty()) {
                         ensureRemoteUnchanged(remoteRecords, session.fetchAttendance());
                         try {
-                            session.saveAttendance(plan.recordsToSave());
+                            // ACTS29 화면과 동일하게 조회한 전체 명단을 순서대로 전송한다.
+                            session.saveAttendance(plan.rosterToSave());
                         } catch (ApiException exception) {
                             if (!request.isPartialAllowed()
                                     || !"ACTS29_REQUEST_FAILED".equals(exception.getCode())
@@ -198,6 +199,7 @@ public class Acts29AttendanceSyncService {
         }
 
         List<Acts29StudentRecord> recordsToSave = new ArrayList<>();
+        List<Acts29StudentRecord> rosterToSave = new ArrayList<>(remoteRecords.size());
         List<Acts29AttendanceChange> changes = new ArrayList<>();
         int remotePresentBefore = 0;
         int remotePresentAfter = 0;
@@ -209,6 +211,7 @@ public class Acts29AttendanceSyncService {
             Acts29StudentRecord next = match == null
                     ? remote
                     : remote.withAttendance(match.desiredAttendance());
+            rosterToSave.add(next);
             if ("Y".equalsIgnoreCase(next.attendance())) {
                 remotePresentAfter++;
             }
@@ -232,6 +235,7 @@ public class Acts29AttendanceSyncService {
                 remoteRecords.size(),
                 matchByRemoteIndex,
                 recordsToSave,
+                rosterToSave,
                 changes,
                 issues,
                 remotePresentBefore,
@@ -287,7 +291,8 @@ public class Acts29AttendanceSyncService {
             }
             if (current != null) {
                 try {
-                    session.saveAttendance(List.of(current.withAttendance(match.desiredAttendance())));
+                    session.saveAttendance(replaceRecord(
+                            latest, current.withAttendance(match.desiredAttendance())));
                 } catch (ApiException exception) {
                     if (!"ACTS29_REQUEST_FAILED".equals(exception.getCode())
                             || !exception.getMessage().contains("HTTP 500")) {
@@ -312,8 +317,17 @@ public class Acts29AttendanceSyncService {
                 .toList();
         issues.sort(Comparator.comparing(Acts29MatchIssue::studentName).thenComparing(Acts29MatchIssue::studentId));
         int presentAfter = (int) latest.stream().filter(record -> "Y".equalsIgnoreCase(record.attendance())).count();
-        return new SyncPlan(plan.localCount(), plan.remoteCount(), successful, List.of(), changes,
+        return new SyncPlan(plan.localCount(), plan.remoteCount(), successful, List.of(), List.of(), changes,
                 issues, plan.remotePresentBefore(), presentAfter);
+    }
+
+    private List<Acts29StudentRecord> replaceRecord(
+            List<Acts29StudentRecord> roster,
+            Acts29StudentRecord replacement
+    ) {
+        return roster.stream()
+                .map(record -> record.identityKey().equals(replacement.identityKey()) ? replacement : record)
+                .toList();
     }
 
     private void verifySaved(SyncPlan plan, List<Acts29StudentRecord> savedRecords) {
@@ -440,6 +454,7 @@ public class Acts29AttendanceSyncService {
             int remoteCount,
             Map<Integer, Match> matchesByRemoteIndex,
             List<Acts29StudentRecord> recordsToSave,
+            List<Acts29StudentRecord> rosterToSave,
             List<Acts29AttendanceChange> changes,
             List<Acts29MatchIssue> issues,
             int remotePresentBefore,

@@ -23,7 +23,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 class PlaywrightActs29ClientTest {
 
     @Test
-    @DisplayName("ACTS29 페이지와 실제 조회·저장 요청은 날짜를 yyyyMMdd로 전달한다")
+    @DisplayName("요청 파라미터 날짜는 yyyyMMdd로, 학생 JSON은 ACTS29 화면처럼 조회 값 그대로 전달한다")
     void sendsNumericDateOnPageFetchAndSave() throws Exception {
         List<String> requests = new CopyOnWriteArrayList<>();
         HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
@@ -59,19 +59,19 @@ class PlaywrightActs29ClientTest {
                     assertThat(session.fetchAttendance()).isEmpty();
                     var raw = new ObjectMapper().createObjectNode();
                     raw.put("user_id", "123");
-                    raw.put("attend_yn", "Y");
-                    raw.put("sau", "기존 사유");
+                    raw.put("attend_yn", "N");
+                    raw.put("sau", " ");
                     raw.put("bogoday", "2026-10-11");
                     raw.put("pass_day", "2025-03-02");
-                    session.saveAttendance(List.of(Acts29StudentRecord.from(0, raw)));
+                    session.saveAttendance(List.of(Acts29StudentRecord.from(0, raw).withAttendance("Y")));
                     assertThat(raw.path("bogoday").asText()).isEqualTo("2026-10-11");
                     assertThat(raw.path("pass_day").asText()).isEqualTo("2025-03-02");
                 }
-                assertThat(requests).hasSize(2).allSatisfy(body -> {
-                    assertThat(body).contains("bogoday=20261011").doesNotContain("2026-10-11");
-                });
-                assertThat(requests.get(1)).contains("sau_arr=기존 사유", "\"attend_yn\":\"Y\"");
-                assertThat(requests.get(1)).contains("\"bogoday\":\"20261011\"", "\"pass_day\":\"20250302\"");
+                assertThat(requests).hasSize(2).allSatisfy(body -> assertThat(body).contains("bogoday=20261011"));
+                assertThat(requests.get(0)).doesNotContain("2026-10-11");
+                // 출석으로 바꿔도 sau_arr는 조회 시점 select 값(결석 기본 사유)을 유지한다.
+                assertThat(requests.get(1)).contains("sau_arr=사유를 알지 못하는 결석", "\"attend_yn\":\"Y\"");
+                assertThat(requests.get(1)).contains("\"bogoday\":\"2026-10-11\"", "\"pass_day\":\"2025-03-02\"");
             } finally {
                 requestContext.dispose();
             }
