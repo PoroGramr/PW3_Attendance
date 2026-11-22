@@ -52,6 +52,8 @@ class Acts29AttendanceSyncControllerTest {
                 3,
                 13,
                 List.of(),
+                List.of(),
+                0,
                 List.of()
         );
         given(syncService.sync(date, null)).willReturn(response);

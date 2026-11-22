@@ -7,9 +7,11 @@ import com.jspark.pw3_attendant.domain.Student.Student;
 import com.jspark.pw3_attendant.domain.StudentClass.StudentClass;
 import com.jspark.pw3_attendant.repository.Attendance.AttendanceRepository;
 import com.jspark.pw3_attendant.repository.StudentClass.StudentClassRepository;
+import com.jspark.pw3_attendant.service.Attendance.AttendanceService;
 import com.jspark.pw3_attendant.service.integration.acts29.dto.Acts29AttendanceChange;
 import com.jspark.pw3_attendant.service.integration.acts29.dto.Acts29AttendanceSyncRequest;
 import com.jspark.pw3_attendant.service.integration.acts29.dto.Acts29AttendanceSyncResponse;
+import com.jspark.pw3_attendant.service.integration.acts29.dto.Acts29LocalAttendanceUpdate;
 import com.jspark.pw3_attendant.service.integration.acts29.dto.Acts29MatchIssue;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -38,6 +40,7 @@ public class Acts29AttendanceSyncService {
     private final StudentClassRepository studentClassRepository;
     private final AttendanceRepository attendanceRepository;
     private final Acts29Client acts29Client;
+    private final AttendanceService attendanceService;
     private final ReentrantLock syncLock = new ReentrantLock();
 
     public Acts29AttendanceSyncResponse sync(LocalDate date, Acts29AttendanceSyncRequest requested) {
@@ -82,6 +85,7 @@ public class Acts29AttendanceSyncService {
                 boolean partialSave = false;
                 if (!request.isDryRun()) {
                     validateMatchCompleteness(plan, request);
+                    applyLocalLateUpdates(date, plan);
                     if (!plan.changes().isEmpty()) {
                         ensureRemoteUnchanged(remoteRecords, session.fetchAttendance());
                         try {
@@ -146,7 +150,8 @@ public class Acts29AttendanceSyncService {
                             studentClass.getId(),
                             AttendanceStatus.UNCHECKED
                     );
-                    return new LocalAttendance(student.getId(), student.getName(), student.getBirth(), status);
+                    return new LocalAttendance(
+                            studentClass.getId(), student.getId(), student.getName(), student.getBirth(), status);
                 })
                 .sorted(Comparator.comparing(LocalAttendance::name).thenComparing(LocalAttendance::studentId))
                 .toList();
@@ -184,6 +189,7 @@ public class Acts29AttendanceSyncService {
                 ));
 
         Map<Integer, Match> matchByRemoteIndex = new HashMap<>();
+        List<LocalAttendance> localLateUpdates = new ArrayList<>();
         for (Map.Entry<String, List<LocalAttendance>> claim : claimsByRemote.entrySet()) {
             List<LocalAttendance> locals = claim.getValue();
             if (locals.size() > 1) {
@@ -195,7 +201,13 @@ public class Acts29AttendanceSyncService {
             }
             LocalAttendance local = locals.get(0);
             Acts29StudentRecord remote = singleCandidates.get(local);
-            matchByRemoteIndex.put(remote.index(), new Match(local, remote, toActs29Attendance(local.status())));
+            String desired = toActs29Attendance(local.status());
+            if ("N".equals(desired) && "Y".equals(normalizeAttendance(remote.attendance()))) {
+                // Acts29의 출석 기록은 내리지 않고, 로컬 출석을 지각으로 맞춘다.
+                desired = "Y";
+                localLateUpdates.add(local);
+            }
+            matchByRemoteIndex.put(remote.index(), new Match(local, remote, desired));
         }
 
         List<Acts29StudentRecord> recordsToSave = new ArrayList<>();
@@ -238,9 +250,20 @@ public class Acts29AttendanceSyncService {
                 rosterToSave,
                 changes,
                 issues,
+                localLateUpdates,
                 remotePresentBefore,
                 remotePresentAfter
         );
+    }
+
+    private void applyLocalLateUpdates(LocalDate date, SyncPlan plan) {
+        for (LocalAttendance local : plan.localLateUpdates()) {
+            attendanceService.upsertAttendance(local.studentClassId(), date, AttendanceStatus.LATE);
+        }
+        if (!plan.localLateUpdates().isEmpty()) {
+            log.info("Acts29 present students marked LATE locally: date={}, count={}",
+                    date, plan.localLateUpdates().size());
+        }
     }
 
     private void validateConfirmation(LocalDate date, Acts29AttendanceSyncRequest request) {
@@ -318,7 +341,7 @@ public class Acts29AttendanceSyncService {
         issues.sort(Comparator.comparing(Acts29MatchIssue::studentName).thenComparing(Acts29MatchIssue::studentId));
         int presentAfter = (int) latest.stream().filter(record -> "Y".equalsIgnoreCase(record.attendance())).count();
         return new SyncPlan(plan.localCount(), plan.remoteCount(), successful, List.of(), List.of(), changes,
-                issues, plan.remotePresentBefore(), presentAfter);
+                issues, plan.localLateUpdates(), plan.remotePresentBefore(), presentAfter);
     }
 
     private List<Acts29StudentRecord> replaceRecord(
@@ -384,7 +407,16 @@ public class Acts29AttendanceSyncService {
                 plan.remotePresentBefore(),
                 plan.remotePresentAfter(),
                 List.copyOf(plan.changes()),
-                List.copyOf(plan.issues())
+                List.copyOf(plan.issues()),
+                plan.localLateUpdates().size(),
+                plan.localLateUpdates().stream()
+                        .map(local -> new Acts29LocalAttendanceUpdate(
+                                local.studentId(),
+                                local.name(),
+                                local.status().name(),
+                                AttendanceStatus.LATE.name()
+                        ))
+                        .toList()
         );
     }
 
@@ -435,6 +467,7 @@ public class Acts29AttendanceSyncService {
     }
 
     private record LocalAttendance(
+            Long studentClassId,
             Long studentId,
             String name,
             LocalDate birth,
@@ -457,6 +490,7 @@ public class Acts29AttendanceSyncService {
             List<Acts29StudentRecord> rosterToSave,
             List<Acts29AttendanceChange> changes,
             List<Acts29MatchIssue> issues,
+            List<LocalAttendance> localLateUpdates,
             int remotePresentBefore,
             int remotePresentAfter
     ) {

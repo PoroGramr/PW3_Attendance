@@ -17,6 +17,9 @@ public record Acts29AttendanceSyncResponse(
         int remotePresentBefore,
         int remotePresentAfter,
         List<Acts29AttendanceChange> changes,
-        List<Acts29MatchIssue> matchIssues
+        List<Acts29MatchIssue> matchIssues,
+        // Acts29 출석(Y)을 기준으로 로컬 출석을 지각(LATE)으로 바꾼(dry-run이면 바꿀) 학생
+        int localLateUpdatedCount,
+        List<Acts29LocalAttendanceUpdate> localLateUpdates
 ) {
 }

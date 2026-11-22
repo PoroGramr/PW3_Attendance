@@ -18,6 +18,7 @@ import com.jspark.pw3_attendant.domain.Student.Student;
 import com.jspark.pw3_attendant.domain.StudentClass.StudentClass;
 import com.jspark.pw3_attendant.repository.Attendance.AttendanceRepository;
 import com.jspark.pw3_attendant.repository.StudentClass.StudentClassRepository;
+import com.jspark.pw3_attendant.service.Attendance.AttendanceService;
 import com.jspark.pw3_attendant.service.integration.acts29.dto.Acts29AttendanceSyncRequest;
 import com.jspark.pw3_attendant.service.integration.acts29.dto.Acts29AttendanceSyncResponse;
 import java.time.LocalDate;
@@ -52,6 +53,9 @@ class Acts29AttendanceSyncServiceTest {
     @Mock
     private Acts29Client.Session session;
 
+    @Mock
+    private AttendanceService attendanceService;
+
     private Acts29AttendanceSyncService service;
 
     @BeforeEach
@@ -59,65 +63,79 @@ class Acts29AttendanceSyncServiceTest {
         service = new Acts29AttendanceSyncService(
                 studentClassRepository,
                 attendanceRepository,
-                acts29Client
+                acts29Client,
+                attendanceService
         );
     }
 
     @Test
-    @DisplayName("미체크 학생은 dry-run에서 결석(N) 변경 대상으로 계산한다")
-    void uncheckedStudentMapsToAbsentInDryRun() {
+    @DisplayName("미체크 학생은 dry-run에서 원격 결석이면 그대로 두고 변경 대상으로 계산하지 않는다")
+    void uncheckedStudentKeepsRemoteAbsentInDryRun() {
         StudentClass studentClass = studentClass(1L, 10L, "테스트학생", LocalDate.of(2010, 1, 2));
-        Acts29StudentRecord remote = remoteRecord(0, "target-10", "테스트학생", "20100102", "Y");
-        Acts29StudentRecord unrelated = remoteRecord(1, "other-20", "다른반학생", "20100203", "N");
+        Acts29StudentRecord remote = remoteRecord(0, "target-10", "테스트학생", "20100102", "N");
         given(studentClassRepository.findAllBySchoolYear(2026)).willReturn(List.of(studentClass));
         given(attendanceRepository.findAllByStudentClassInAndDate(List.of(studentClass), DATE))
                 .willReturn(List.of());
         given(acts29Client.open(DATE, "전체", "전체")).willReturn(session);
-        given(session.fetchAttendance()).willReturn(List.of(remote, unrelated));
+        given(session.fetchAttendance()).willReturn(List.of(remote));
 
         Acts29AttendanceSyncResponse response = service.sync(
-                DATE,
-                new Acts29AttendanceSyncRequest(true, false, null, null)
-        );
+                DATE, new Acts29AttendanceSyncRequest(true, false, null, null));
 
         assertThat(response.result()).isEqualTo("DRY_RUN");
-        assertThat(response.matchedCount()).isEqualTo(1);
-        assertThat(response.unmatchedTargetCount()).isZero();
-        assertThat(response.changedCount()).isEqualTo(1);
-        assertThat(response.remotePresentBefore()).isEqualTo(1);
-        assertThat(response.remotePresentAfter()).isZero();
-        assertThat(response.changes()).singleElement().satisfies(change -> {
-            assertThat(change.localStatus()).isEqualTo("UNCHECKED");
-            assertThat(change.previousAttendance()).isEqualTo("Y");
-            assertThat(change.nextAttendance()).isEqualTo("N");
+        assertThat(response.changedCount()).isZero();
+        assertThat(response.localLateUpdatedCount()).isZero();
+        verify(session, never()).saveAttendance(anyList());
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"UNCHECKED", "ABSENT", "OTHER"})
+    @DisplayName("Acts29 출석(Y) 학생이 로컬에서 출석이 아니면 Acts29는 유지하고 로컬을 지각으로 바꾼다")
+    void marksLocalLateWhenRemotePresent(String localStatus) {
+        StudentClass studentClass = studentClass(1L, 10L, "테스트학생", LocalDate.of(2010, 1, 2));
+        Acts29StudentRecord remote = remoteRecord(0, "", "테스트학생", "100102", "Y");
+        given(studentClassRepository.findAllBySchoolYear(2026)).willReturn(List.of(studentClass));
+        given(attendanceRepository.findAllByStudentClassInAndDate(List.of(studentClass), DATE))
+                .willReturn(localStatus.equals("UNCHECKED")
+                        ? List.of()
+                        : List.of(attendance(studentClass, AttendanceStatus.valueOf(localStatus))));
+        given(acts29Client.open(DATE, "전체", "전체")).willReturn(session);
+        given(session.fetchAttendance()).willReturn(List.of(remote));
+
+        Acts29AttendanceSyncResponse response = service.sync(
+                DATE, new Acts29AttendanceSyncRequest(false, false, DATE, null));
+
+        assertThat(response.result()).isEqualTo("NO_CHANGES");
+        assertThat(response.changedCount()).isZero();
+        assertThat(response.matchIssues()).isEmpty();
+        assertThat(response.remotePresentAfter()).isEqualTo(1);
+        assertThat(response.localLateUpdatedCount()).isEqualTo(1);
+        assertThat(response.localLateUpdates()).singleElement().satisfies(update -> {
+            assertThat(update.studentId()).isEqualTo(10L);
+            assertThat(update.previousStatus()).isEqualTo(localStatus);
+            assertThat(update.nextStatus()).isEqualTo("LATE");
         });
+        verify(attendanceService).upsertAttendance(1L, DATE, AttendanceStatus.LATE);
         verify(session, never()).saveAttendance(anyList());
     }
 
     @Test
-    @DisplayName("실제 동기화는 저장 후 다시 조회해 출석 상태를 검증한다")
-    void appliesAndVerifiesAttendance() {
+    @DisplayName("dry-run에서는 로컬 지각 전환 대상만 보여주고 저장하지 않는다")
+    void dryRunDoesNotWriteLocalLate() {
         StudentClass studentClass = studentClass(1L, 10L, "테스트학생", LocalDate.of(2010, 1, 2));
-        Acts29StudentRecord before = remoteRecord(0, "target-10", "테스트학생", "100102", "Y");
-        Acts29StudentRecord after = before.withAttendance("N");
         given(studentClassRepository.findAllBySchoolYear(2026)).willReturn(List.of(studentClass));
         given(attendanceRepository.findAllByStudentClassInAndDate(List.of(studentClass), DATE))
                 .willReturn(List.of());
         given(acts29Client.open(DATE, "전체", "전체")).willReturn(session);
         given(session.fetchAttendance())
-                .willReturn(List.of(before), List.of(before), List.of(after));
+                .willReturn(List.of(remoteRecord(0, "", "테스트학생", "20100102", "Y")));
 
         Acts29AttendanceSyncResponse response = service.sync(
-                DATE,
-                new Acts29AttendanceSyncRequest(false, false, DATE, null)
-        );
+                DATE, new Acts29AttendanceSyncRequest(true, null, null, null));
 
-        assertThat(response.result()).isEqualTo("SYNCED");
-        ArgumentCaptor<List<Acts29StudentRecord>> captor = ArgumentCaptor.forClass(List.class);
-        verify(session).saveAttendance(captor.capture());
-        assertThat(captor.getValue()).singleElement()
-                .extracting(Acts29StudentRecord::attendance)
-                .isEqualTo("N");
+        assertThat(response.localLateUpdatedCount()).isEqualTo(1);
+        verify(attendanceService, never()).upsertAttendance(org.mockito.ArgumentMatchers.anyLong(),
+                org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
     }
 
     @Test
